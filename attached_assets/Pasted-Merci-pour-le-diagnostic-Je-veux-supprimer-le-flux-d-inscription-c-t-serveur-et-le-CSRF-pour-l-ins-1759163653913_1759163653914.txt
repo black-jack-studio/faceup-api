@@ -3,7 +3,7 @@ Merci pour le diagnostic. Je veux supprimer le flux d’inscription côté serve
 À faire
 	1.	Remplacer l’appel POST actuel dans client/src/pages/auth/register.tsx par :
 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 
 const { data, error } = await supabase.auth.signUp({
   email,

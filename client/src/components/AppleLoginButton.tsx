@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function AppleLoginButton() {
   const handleAppleLogin = async () => {
