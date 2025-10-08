@@ -1,0 +1,202 @@
+
+Objectif: empaqueter l’app React/Vite avec Capacitor et activer l’auth mobile (Google + Apple) via un deep link faceup://auth/callback.
+On doit:
+	1.	Installer/initialiser Capacitor, 2) créer le handler de deep links (échange du code Supabase), 3) paramétrer les redirects dans le code, 4) préparer iOS/Android (fichiers), 5) scripts de build.
+Ne touche pas à la logique métier existante.
+
+Paramètres à utiliser
+	•	Bundle ID: com.beaudoin.faceup
+	•	Scheme: faceup
+	•	Host: auth
+	•	Path: /callback
+	•	Redirect URL mobile: faceup://auth/callback
+	•	Redirect URL web (déjà OK): https://yqganeyurpbdkjaxsgnm.supabase.co/auth/v1/callback
+
+⸻
+
+Étapes
+
+1) Installer Capacitor
+	•	Ajoute les deps:
+
+npm i @capacitor/core
+npm i -D @capacitor/cli
+
+
+	•	Initialise Capacitor:
+
+npx cap init faceup com.beaudoin.faceup --web-dir=dist
+
+
+	•	Ajoute les plateformes:
+
+npx cap add ios
+npx cap add android
+
+
+
+2) Vite & scripts
+	•	Vérifie/ajoute dans vite.config.ts:
+
+export default defineConfig({
+  base: '',
+  // le reste inchangé
+})
+
+
+	•	Ajoute/maj scripts dans package.json:
+
+{
+  "scripts": {
+    "build": "vite build",
+    "cap:sync": "npx cap sync",
+    "cap:copy": "npx cap copy",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "android": "npm run build && npx cap sync android && npx cap open android"
+  }
+}
+
+
+
+3) Fichier Capacitor
+	•	Crée/maj capacitor.config.ts:
+
+import { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.beaudoin.faceup',
+  appName: 'faceup',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https'
+  }
+};
+export default config;
+
+
+
+4) Deep link handler (échange de code Supabase)
+	•	Crée src/deep-link.ts:
+
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient'; // si déjà exporté; sinon utilise l'import existant
+
+export function registerDeepLinkHandler() {
+  if (!Capacitor.isNativePlatform()) return;
+
+  App.addListener('appUrlOpen', async ({ url }) => {
+    try {
+      const u = new URL(url);
+      // Format attendu: faceup://auth/callback?code=...&state=...
+      const code = u.searchParams.get('code');
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession({ code });
+        if (error) console.error('Supabase exchange error', error);
+        // TODO: router vers l’écran connecté si besoin
+      }
+    } catch (e) {
+      console.error('Deep link parse error', e);
+    }
+  });
+}
+
+
+	•	Dans src/main.tsx (ou équivalent bootstrap), importe et appelle:
+
+import { registerDeepLinkHandler } from './deep-link';
+registerDeepLinkHandler();
+
+
+
+5) Appels OAuth avec redirect mobile
+	•	Dans le module où tu déclenches l’auth (ex: src/auth.ts ou composant login), ajoute ces helpers en gardant le code existant:
+
+import { Capacitor } from '@capacitor/core';
+import { supabase } from './supabaseClient';
+
+const MOBILE_REDIRECT = 'faceup://auth/callback';
+const WEB_REDIRECT = 'https://yqganeyurpbdkjaxsgnm.supabase.co/auth/v1/callback';
+
+function redirectTo() {
+  return Capacitor.isNativePlatform() ? MOBILE_REDIRECT : WEB_REDIRECT;
+}
+
+export async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: redirectTo() }
+  });
+  if (error) console.error(error);
+}
+
+export async function signInWithApple() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: { redirectTo: redirectTo() }
+  });
+  if (error) console.error(error);
+}
+
+
+	•	Ne supprime pas les autres façons de se connecter; ajoute juste ces deux fonctions et branche-les sur les boutons Google/Apple.
+
+6) iOS – URL Scheme
+	•	Ouvre ios et patch Info.plist pour ajouter un URL Type:
+	•	Fichier: ios/App/App/Info.plist
+	•	Ajoute avant la balise de fin </dict>:
+
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>faceup</string>
+    </array>
+  </dict>
+</array>
+
+
+
+7) Android – Intent filter
+	•	Patch android/app/src/main/AndroidManifest.xml pour la MainActivity:
+
+<intent-filter android:autoVerify="true">
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data
+    android:scheme="faceup"
+    android:host="auth"
+    android:path="/callback" />
+</intent-filter>
+
+
+
+8) Build & sync
+	•	Exécute:
+
+npm run build
+npx cap sync
+
+
+	•	(On ouvrira Xcode/Android Studio plus tard sur ma demande.)
+
+9) Critères d’acceptation
+	•	Le projet build toujours côté web (npm run build OK).
+	•	src/deep-link.ts existe et registerDeepLinkHandler() est appelé au bootstrap.
+	•	signInWithGoogle() et signInWithApple() utilisent redirectTo() (mobile vs web).
+	•	Info.plist contient bien le scheme faceup.
+	•	AndroidManifest.xml contient l’intent-filter pour faceup://auth/callback.
+	•	npm run ios / npm run android existent (ouvrent les projets après build + sync).
+
+Ne change rien d’autre. Donne un résumé des fichiers modifiés et des diffs.
+
+⸻
+
+Quand Replit a fini, lance:
+	•	npm run build && npx cap sync
+Puis plus tard, sur ta machine:
+	•	iOS: npm run ios (ouvrira Xcode)
+	•	Android: npm run android (ouvrira Android Studio)

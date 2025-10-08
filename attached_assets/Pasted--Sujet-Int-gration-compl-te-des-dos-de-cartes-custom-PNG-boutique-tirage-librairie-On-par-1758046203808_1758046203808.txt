@@ -1,0 +1,94 @@
+
+Sujet : Intégration complète des dos de cartes custom (PNG) + boutique + tirage + librairie
+
+On part sur une approche dynamique (object storage + DB) afin que les dos soient stockés en PNG (400×560 px, ratio 5:7, fond transparent) et accessibles à chaud, sans re-publi. Les fichiers actuels (commune verte, rare bleue, super rare violette, légendaire jaune) doivent être implémentés comme premiers card backs.
+
+⸻
+
+1) Affichage & jeu
+	•	Remplacer les placeholders (couronne moche) dans PlayingCard / OffsuitCard par cardBackImageUrl (prop obligatoire).
+	•	Source de vérité = DB + object storage. Aucun import statique.
+	•	Ajouter un sélecteur de dos dans la librairie joueur : l’utilisateur choisit un dos actif parmi ceux possédés → ce dos s’affiche partout (tables, lobby, parties).
+	•	Les dos non possédés s’affichent visibles dans le shop et la collection avec badge À acheter.
+
+⸻
+
+2) Modèle de données (mis à jour)
+
+CardBacks(id, name, rarity, image_url, price_coins, created_at)
+UserCardBacks(user_id, card_back_id, acquired_at)    -- inventaire joueur
+UserProfile(user_id, active_card_back_id)            -- dos actif
+ShopOffers(id, card_back_id, start_at, end_at, is_featured)
+GachaPacks(id, name, weights_json, price_coins)
+Purchases(id, user_id, item_type, item_id, price_coins, created_at)
+
+⚠️ Rareté = ENUM : "COMMON", "RARE", "SUPER_RARE", "LEGENDARY".
+
+⸻
+
+3) Boutique & achats
+	•	Achat direct : si UserCardBacks ne contient pas la carte → bouton Acheter (ajoute en DB, débite coins, toast succès).
+	•	Possédé : badge Possédé + bouton Équiper (set UserProfile.active_card_back_id).
+	•	Pas assez de coins : CTA Acheter des coins.
+	•	Chaque carte dans le shop/collection doit afficher une pastille colorée de rareté :
+	•	🟢 vert = Commune
+	•	🔵 bleu = Rare
+	•	🟣 violet = Super Rare
+	•	🟡 jaune = Légendaire
+
+⸻
+
+4) Tirage aléatoire (gacha)
+	•	Écran Pack → achat en coins → animation reveal.
+	•	Logique :
+	1.	Tirer une rareté via weights_json.
+	2.	Sélectionner un dos de cette rareté non possédé → si dup, donner refund en coins (ex: 20%).
+	3.	Inscrire dans UserCardBacks + afficher la nouvelle carte avec animation.
+
+Fonction pure exposée :
+
+type Rarity = "COMMON"|"RARE"|"SUPER_RARE"|"LEGENDARY";
+
+function drawCardBack(userId: string, packId: string): Promise<{
+  wonCardBackId?: string,
+  rarity: Rarity,
+  dupRefundCoins?: number
+}>
+
+
+⸻
+
+5) API / services
+	•	GET /card-backs → liste + métas (filtre owned/unowned, inclure rarity).
+	•	POST /purchase/card-back {card_back_id}.
+	•	POST /gacha/draw {pack_id}.
+	•	POST /profile/set-active-card-back {card_back_id}.
+	•	Vérifier coins + atomicité sur chaque endpoint.
+
+⸻
+
+6) États UI
+	•	Collection : grilles possédés/non possédés, pastille de rareté, badge Nouveau.
+	•	Boutique : cartes avec image PNG, prix, rareté, bouton contextuel (Acheter / Équiper / Possédé).
+	•	Librairie joueur : section claire où l’utilisateur voit ses dos, avec rareté + bouton Équiper.
+	•	Feedback : “Les dos achetés restent associés à ton compte et utilisables immédiatement”.
+
+⸻
+
+7) Technique images
+	•	Les PNGs fournis (commune, rare, super rare, légendaire) sont à uploader dans object storage (Replit/Cloudflare/Supabase).
+	•	En DB : CardBacks.image_url = lien public.
+	•	UI : thumbnails (200px) pour shop/collection, full (400×560) pour in-game.
+	•	Mettre en place cache + placeholder blur pour fluidité.
+
+⸻
+
+8) Critères d’acceptation
+
+✅ Les 4 PNGs fournis remplacent tous les placeholders en jeu.
+✅ Possibilité d’acheter, équiper et jouer avec n’importe quel dos possédé.
+✅ Librairie joueur fonctionne (inventaire persistant, dos actifs).
+✅ Shop montre les cartes non possédées avec rareté et prix.
+✅ Tirage gacha = rareté pondérée, refund si doublon.
+✅ Persistance garantie (même après reconnexion).
+

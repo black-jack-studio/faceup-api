@@ -1,0 +1,65 @@
+<!-- Card Back – Minimal Blue / White – 5:7 (750x1050) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <!-- ======= THEME TOKENS (faciles à modifier) ======= -->
+  <defs>
+    <style>
+      :root{
+        --blue:#0E3A8A;      /* fond principal */
+        --white:#FFFFFF;     /* bordures & motifs */
+        --borderW:28;        /* épaisseur de la bordure externe */
+        --strokeW:18;        /* épaisseur des traits motifs */
+        --radius:40;         /* rayon d'arrondi de la carte */
+        --margin:26;         /* marge intérieure de la bordure */
+      }
+    </style>
+    <!-- Masque arrondi pour couper proprement tout ce qui dépasse -->
+    <clipPath id="cardClip">
+      <rect x="0" y="0" width="750" height="1050" rx="40" ry="40"/>
+    </clipPath>
+  </defs>
+
+  <!-- ======= FOND + BORDURE ======= -->
+  <g clip-path="url(#cardClip)">
+    <!-- Fond bleu plein -->
+    <rect x="0" y="0" width="750" height="1050" fill="var(--blue)"/>
+    <!-- Bordure blanche uniforme (dessinée à l’intérieur) -->
+    <rect
+      x="calc(var(--margin))" y="calc(var(--margin))"
+      width="calc(750 - var(--margin)*2)" height="calc(1050 - var(--margin)*2)"
+      rx="calc(var(--radius))" ry="calc(var(--radius))"
+      fill="none" stroke="var(--white)" stroke-width="var(--borderW)"/>
+  </g>
+
+  <!-- ======= MOTIFS MINIMALISTES (blanc) ======= -->
+  <g fill="none" stroke="var(--white)" stroke-linecap="round" stroke-linejoin="round" stroke-width="var(--strokeW)">
+    <!-- 1) Cadre intérieur (respire le premium) -->
+    <rect
+      x="85" y="120" width="580" height="810"
+      rx="28" ry="28" opacity="0.35"/>
+
+    <!-- 2) Losanges concentriques au centre (emblème) -->
+    <g transform="translate(375,525)">
+      <rect x="-100" y="-140" width="200" height="280" rx="16" ry="16" transform="rotate(45)"/>
+      <rect x="-70"  y="-98"  width="140" height="196" rx="14" ry="14" transform="rotate(45)" opacity="0.7"/>
+      <rect x="-42"  y="-59"  width="84"  height="118" rx="12" ry="12" transform="rotate(45)" opacity="0.45"/>
+      <!-- Noyau -->
+      <circle r="10" fill="var(--white)" stroke="none"/>
+    </g>
+
+    <!-- 3) Arcs “orbitaux” haut & bas (équilibre visuel) -->
+    <!-- Haut -->
+    <path d="M 140 260 Q 375 190 610 260" opacity="0.75"/>
+    <path d="M 170 305 Q 375 245 580 305" opacity="0.45"/>
+    <!-- Bas -->
+    <path d="M 140 790 Q 375 860 610 790" opacity="0.75"/>
+    <path d="M 170 745 Q 375 805 580 745" opacity="0.45"/>
+
+    <!-- 4) Repères latéraux (traits courts épais, bien visibles) -->
+    <line x1="120" y1="455" x2="120" y2="595"/>
+    <line x1="630" y1="455" x2="630" y2="595"/>
+
+    <!-- 5) Petits points-signature (léger, pas gadget) -->
+    <circle cx="375" cy="350" r="6"/>
+    <circle cx="375" cy="700" r="6"/>
+  </g>
+</svg>

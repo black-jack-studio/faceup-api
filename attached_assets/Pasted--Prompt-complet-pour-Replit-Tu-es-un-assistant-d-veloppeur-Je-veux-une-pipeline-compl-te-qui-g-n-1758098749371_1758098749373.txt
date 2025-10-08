@@ -1,0 +1,55 @@
+📝 Prompt complet pour Replit
+
+Tu es un assistant développeur. Je veux une pipeline complète qui génère automatiquement des dos de cartes.
+
+### Objectif
+- Générer 20 SVG différents (1000x1450 px) à partir d’un template (fond + motifs minimalistes).
+- Variantes = changement de couleurs (`--card-bg`, `--accent`) + motifs (cercles, diagonales, grilles, étoiles, etc.).
+- Chaque SVG doit être unique et minimaliste, adapté comme dos de cartes.
+- Convertir ensuite tous ces SVG en **WebP** optimisés (512x742 px, qualité 80).
+- Créer un `card-backs.json` (manifest runtime) listant les cartes avec leurs propriétés.
+
+### Structure demandée
+
+card-backs-pipeline/
+├── src_svgs/               # contient les 20 SVG générés automatiquement
+├── scripts/
+│   └── generate-card-backs.js
+├── card-backs.src.json     # manifest source avec les 20 cartes
+├── client/public/card-backs/  # sortie WebP
+└── card-backs.json         # manifest runtime généré
+
+### Données à générer
+- 20 cartes :
+  - 5 communes (fond vert/bleu clair, motifs simples).
+  - 5 rares (fond bleu, motifs plus complexes).
+  - 5 super rares (fond violet, motifs plus créatifs).
+  - 5 légendaires (fond or/noir, motifs premium).
+- Noms automatiques : `Common Orbit`, `Rare Nova`, `Super Radiant`, `Royal Legend`, etc.
+- `slug` généré en kebab-case (ex: `common-orbit`).
+- `rarity` parmi `common`, `rare`, `super_rare`, `legendary`.
+
+### Étapes
+1. Générer un template `TEMPLATE.svg`.
+2. Produire automatiquement 20 variantes SVG différentes dans `src_svgs/`.
+3. Créer `card-backs.src.json` avec les métadonnées.
+4. Script `generate-card-backs.js` :
+   - Convertit les SVG en WebP 512x742.
+   - Génère `card-backs.json` avec nom, slug, rareté, URL locale (ou Supabase si configuré).
+   - Option : upload vers Supabase si `SUPABASE_URL` et `SUPABASE_ANON_KEY` sont fournis.
+
+### Contraintes techniques
+- Ratio SVG = 1000x1450 px (100:145).
+- Export WebP = 512x742 px (poids cible 30–50 KB).
+- `card-backs.json` doit inclure : `name`, `slug`, `rarity`, `image_url`, `width`, `height`, `bytes`, `sha256`.
+
+### Commandes à lancer
+```bash
+npm i sharp slugify @supabase/supabase-js --save-dev
+node scripts/generate-card-backs.js
+
+Résultat attendu
+	•	20 SVG générés automatiquement.
+	•	20 WebP optimisés dans client/public/card-backs/.
+	•	card-backs.json listant toutes les cartes avec leurs métadonnées.
+	•	Possibilité d’ajouter facilement de nouvelles variantes en modifiant card-backs.src.json puis relançant le script.

@@ -1,0 +1,161 @@
+🔧 ONE-SHOT BUILD PROMPT — BETTING SCREEN (BLACKJACK)
+
+Role: Senior product engineer.
+Goal: Build a blackjack Bet Screen where the player selects their bet via a horizontal slider. The max bet = player’s current coin balance (dynamic). No fancy colors: black/gray/white, premium, minimal, iOS-grade polish.
+
+1) UX & Visual spec
+	•	Theme: dark, minimal, premium. Colors: #0F1012 bg, grays for components, white text. No purple/brand colors.
+	•	Layout (top → bottom):
+	1.	Top Card (section) with rounded bottom corners:
+	•	Small Balance centered (e.g., “10,000”).
+	•	Label YOUR BET (small caps, tracking slightly increased).
+	•	Large current bet amount (e.g., “3,700”), bold, white.
+	2.	Bet Slider (just below the card):
+	•	Base bar: dark gray.
+	•	Filled bar: light gray → white subtle gradient.
+	•	Thumb: white circular, subtle drop shadow + tiny top glossy highlight.
+	•	No tick marks. (Optional: soft haptics at 25% / 50% / 100%.)
+	3.	Quick Actions: three pills 25% | 50% | MAX (dark gray pills, light border, subtle shadow).
+	4.	Spacer.
+	5.	CTA bottom: big rounded white button CONFIRM BET (shadow soft, text black).
+	•	Typography: System stack (SF Pro / Inter / DejaVu) bold for numbers; good tracking for labels.
+	•	Spacing: Generous vertical whitespace; iOS feel.
+	•	Animations (micro):
+	•	Thumb scales to 1.04 while dragging; bar fill updates smoothly (easing).
+	•	Bet number “counts” to target (tweened 120–180 ms).
+	•	Haptics on snap points (25/50/100).
+
+2) Functional spec
+	•	Inputs:
+	•	userId (string, authenticated).
+	•	balance (int ≥ 0) fetched from backend.
+	•	Optional table constraints: minBet (default 1), tableMax (optional hard cap).
+	•	Derived:
+	•	dynamicMax = min(balance, tableMax || Infinity).
+	•	Slider t ∈ [0,1]. Bet = round(dynamicMax * t), then bet = clamp(bet, minBet, dynamicMax).
+	•	Quick buttons:
+	•	25% → bet = round(dynamicMax*0.25), 50% → 0.5, MAX → dynamicMax.
+	•	Confirm:
+	•	Validate bet ≥ minBet and bet ≤ dynamicMax.
+	•	POST /bets/prepare → returns betId and server-validated bet (authoritative).
+	•	On success: navigate to game screen with betId and locked amount.
+	•	Edge cases:
+	•	balance = 0 → disable slider/CTA, show CTA GET COINS (or go to shop).
+	•	balance < minBet → disable, show hint Insufficient balance.
+	•	Race condition: if balance changes between open & confirm, re-fetch, recompute dynamicMax, and re-validate before POST (server wins).
+
+3) Data model (simple)
+
+type User = { id: string; coins: number; };
+
+type BetDraft = {
+  betId: string;
+  userId: string;
+  amount: number;
+  createdAt: string;  // server time
+  expiresAt: string;  // e.g., +60s to avoid stale lock
+};
+
+4) REST API (implement backend)
+	•	GET /users/me → { id, coins }
+	•	POST /bets/prepare body { amount }
+	•	Server loads user, recomputes dynamicMax = min(user.coins, tableMax?)
+	•	Validates minBet ≤ amount ≤ dynamicMax
+	•	Creates BetDraft (locks amount or earmarks it until start), returns { betId, amount }
+	•	POST /bets/commit body { betId }
+	•	Server verifies draft not expired; deduct coins; returns { success: true }
+	•	POST /bets/cancel body { betId }
+	•	Unlocks draft if not committed.
+	•	Security: validate userId from session/JWT; never trust client amount; idempotent commit.
+
+5) Front-end logic (React/React-Native/Web — choose one and implement)
+
+State
+
+const [balance, setBalance] = useState<number>(0);
+const [minBet, setMinBet] = useState<number>(1);
+const [tableMax, setTableMax] = useState<number | null>(null);
+const dynamicMax = Math.max(minBet, Math.min(balance, tableMax ?? Infinity));
+const [t, setT] = useState<number>(balance>0 ? 0.37 : 0); // default position
+const bet = clamp(Math.round(dynamicMax * t), minBet, dynamicMax);
+
+Slider behavior
+	•	On pan/drag: t = clamp((x - left) / width, 0, 1)
+	•	Update filled width, thumb position, and animated bet display.
+	•	Quick buttons: set t accordingly (0.25, 0.5, 1.0).
+
+Confirm
+
+async function onConfirm() {
+  // re-fetch to avoid stale balance
+  const fresh = await api.get('/users/me');
+  const dyn = Math.min(fresh.coins, tableMax ?? Infinity);
+  const proposed = clamp(Math.round(dyn * t), minBet, dyn);
+  const { betId, amount } = await api.post('/bets/prepare', { amount: proposed });
+  // navigate with betId; optionally auto-commit on game start
+}
+
+Empty/insufficient states
+	•	If balance === 0 → disable slider/CTA; show Get Coins.
+	•	If balance < minBet → disable slider/CTA; hint Min bet is X.
+
+6) Backend reference (Node/Express + in-memory or Prisma)
+
+// Pseudo-Express
+app.get('/users/me', auth, async (req, res) => {
+  const user = await db.user.findById(req.user.id);
+  return res.json({ id: user.id, coins: user.coins });
+});
+
+app.post('/bets/prepare', auth, async (req,res)=>{
+  const { amount } = req.body;
+  const user = await db.user.findById(req.user.id);
+  const minBet = 1; const tableMax = null; // configurable
+  const dynamicMax = Math.max(minBet, Math.min(user.coins, tableMax ?? Infinity));
+  if (!(amount >= minBet && amount <= dynamicMax)) return res.status(400).json({error:'INVALID_AMOUNT'});
+  const betId = uid();
+  await db.betDraft.insert({ betId, userId:user.id, amount, createdAt:now(), expiresAt:addSeconds(now(),60) });
+  return res.json({ betId, amount });
+});
+
+app.post('/bets/commit', auth, async (req,res)=>{
+  const { betId } = req.body;
+  const draft = await db.betDraft.findById(betId);
+  if (!draft || draft.userId !== req.user.id) return res.status(404).json({error:'NOT_FOUND'});
+  if (draft.expiresAt < now()) return res.status(410).json({error:'EXPIRED'});
+  const user = await db.user.findById(req.user.id);
+  if (user.coins < draft.amount) return res.status(409).json({error:'BALANCE_CHANGED'});
+  await db.user.update(user.id, { coins: user.coins - draft.amount });
+  await db.betDraft.delete(betId);
+  return res.json({ success:true });
+});
+
+7) Styling tokens (CSS/StyleSheet)
+	•	Background: #0F1012
+	•	Card top: #1C1D21 to #24262B
+	•	Slider base: #2B2D32
+	•	Slider fill: gradient #D9DADE → #FFFFFF (very subtle)
+	•	Thumb: #FFFFFF + shadow rgba(0,0,0,0.25)
+	•	Pills: bg #2A2B30, border #5A5C63, text #F3F4F6
+	•	CTA: bg #FFFFFF, text #15161A, shadow soft 0 8px 24px rgba(0,0,0,0.35)
+
+8) Accessibility
+	•	Text contrast WCAG AA (check gray tones).
+	•	Touch areas ≥ 44x44pt (thumb + pills).
+	•	Haptics on snap points; VoiceOver reads: “Bet slider, current 3,700 of 10,000”.
+
+9) QA checklist
+	•	With balance=10_000 → dragging to ~0.37 shows ~3,700; quick 25/50/MAX set correctly.
+	•	With balance=500 and minBet=100 → clamp between 100 and 500.
+	•	If balance changes server-side during confirm → client re-fetch + server validation stop wrong commits.
+	•	No negative or NaN values; slider disabled on zero balance.
+	•	Animation and haptics feel responsive (60fps).
+
+10) Deliverables
+	•	Front-end screen component + styles.
+	•	API handlers for /users/me, /bets/prepare, /bets/commit.
+	•	Lightweight in-memory store or Prisma schema for User and BetDraft.
+	•	Unit tests for math (clamp, percent mapping).
+	•	E2E happy path (select → prepare → commit).
+
+Build it now with these specs.

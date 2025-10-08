@@ -1,0 +1,70 @@
+
+Objectif : Migration complète Neon ➜ Supabase, sans casser l’app, avec bascule progressive. Pas de code “en vrac”, fais-le étape par étape et confirme chaque étape.
+
+Contexte
+	•	Aujourd’hui l’app lit/écrit surtout sur Neon (Replit Postgres).
+	•	Je veux passer à Supabase comme base unique (Auth + DB).
+	•	On part sur user_id en UUID partout côté Supabase.
+
+⸻
+
+Étapes demandées (exécute et confirme à chaque fois)
+
+1) Détection & inventaire
+	•	Montre-moi quelles variables l’app utilise actuellement pour la DB (Neon) et pour Supabase.
+	•	Liste toutes les tables réellement utilisées par l’app (profils/coins/gems/inventory/stats/challenges/bets/shop/card_backs/friends…).
+
+2) Export Neon ➜ CSV
+	•	Exporte depuis Neon en CSV (avec header) chaque table utile trouvée à l’étape 1.
+	•	Donne-moi la liste des fichiers générés (noms et colonnes).
+
+3) Schéma Supabase (sans FK au début)
+	•	Crée dans Supabase les tables vides équivalentes (mêmes colonnes/typage), en imposant user_id uuid quand c’est pertinent.
+	•	Active RLS sur public.profiles et ajoute ces policies minimales :
+	•	SELECT/UPDATE own profile: user_id = auth.uid().
+
+4) Trigger d’inscription Supabase
+	•	Crée (ou ajuste) le trigger on_auth_user_created sur auth.users qui insère dans public.profiles :
+user_id = new.id, username = raw_user_meta_data.username || email prefix, coins=5000, gems=0, tickets=3.
+	•	Ne touche à aucune autre table ici.
+
+5) Import CSV ➜ Supabase
+	•	Importe les CSV exportés dans les tables Supabase correspondantes.
+	•	Valide que tous les user_id importés sont des UUID valides (corrige/ignore les lignes invalides en me listant les cas).
+
+6) Ajout des FK/index (après import OK)
+	•	Ajoute les foreign keys entre tables maintenant que les données sont propres (ex: inventory.user_id → profiles.user_id).
+	•	Crée les index indispensables (sur user_id, colonnes de jointures).
+
+7) Data layer “dual-write”
+	•	Crée un data client unique (ex: src/dataClient.ts) avec un flag USE_SUPABASE.
+	•	Lectures : si USE_SUPABASE=true ➜ lire Supabase ; sinon Neon.
+	•	Écritures : pendant la phase de transition, écris sur les deux (Neon + Supabase) avec try/catch et logs (sans casser si l’un échoue).
+	•	Route tous les accès données (profil/coins/gems/tickets/challenges/inventory/bets/friends) par ce client (pas d’appels SQL directs ailleurs).
+
+8) Bascule contrôlée
+	•	Bascule les lectures sur Supabase only et garde écritures doubles 24–48h.
+	•	Puis bascule écritures sur Supabase only.
+	•	Supprime les dépendances Neon (et variables inutilisées).
+
+9) Vérifications
+	•	Check-list à prouver avec captures/logs :
+	•	Signup ➜ auth.users + public.profiles (coins=5000).
+	•	Login ➜ UI montre username/coins depuis Supabase.
+	•	Parie/gagne ➜ coins mis à jour Supabase.
+	•	Boutique/avatars/challenges ➜ OK sous RLS.
+	•	Recherche d’amis ➜ requêtes Supabase, pas Neon.
+	•	Plus aucun appel Neon dans les logs.
+
+10) Rapport final
+	•	Résume ce qui a été changé (fichiers, env vars, tables, policies, triggers), où sont les CSV, et comment rollback si besoin.
+
+⸻
+
+Important :
+	•	Ne casse rien en prod : applique les modifs progressivement, avec confirmations et logs.
+	•	Si un type ne “matche” pas (uuid vs text), propose-moi le fix avant d’exécuter.
+	•	À chaque erreur (RLS, colonne manquante, etc.), montre le message exact et corrige proprement.
+
+Quand tu es prêt, commence par l’étape 1) Détection & inventaire et montre-moi les variables/connexions actuelles.
+

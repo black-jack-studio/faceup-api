@@ -1,0 +1,130 @@
+Mode de travail (OBLIGATOIRE)
+	•	⚠️ Ne recrée pas l’application. Interdiction de supprimer / renommer les dossiers racine existants.
+	•	Travaille en diff-only : ajouts de fichiers, refactor visuel, composants UI.
+	•	Avant toute modif, crée un snapshot : git add -A && git commit -m "checkpoint: before UI makeover" (ou checkpoint Replit).
+	•	À la fin de chaque section, refais un commit.
+
+Objectif
+	•	Refaire l’interface et l’expérience existantes pour correspondre au look & feel Offsuit (références = images jointes) sans copier d’assets.
+	•	On garde la stack actuelle. On n’ajoute que Tailwind tokens, composants UI, icônes SVG, et quelques pages si elles manquent (Home / Shop / Profile / Pass / Rewards / Play).
+	•	Tout le back/état existant reste intact (Zustand/Supabase déjà présents → on ne casse pas les imports).
+
+⸻
+
+1) Thème & tokens (non-destructif)
+	•	Ajoute/complète tailwind.config.ts (ou tailwind.config.js) sans supprimer les valeurs existantes :
+	•	Couleurs :
+ink: "#0B0B0F", ink-2: "#13151A", card-dark: "#111214", card-light: "#FFFFFF",
+accent-green: "#B5F3C7", accent-purple: "#B79CFF", accent-blue: "#8CCBFF", accent-gold: "#F8CA5A".
+	•	Radius : xl: "24px", 2xl: "32px".
+	•	Shadow doux type iOS : shadow-soft: "0 6px 24px rgba(0,0,0,.25)".
+	•	Police : Inter / SF Pro (fallback system).
+	•	Ajoute un fichier global style (ex. src/styles/theme.css) avec classes utilitaires : glass, card, pill, tiny-border, etc.
+
+Garde-fous : si Tailwind absent, l’installer et le brancher sans toucher aux bundlers actuels.
+
+⸻
+
+2) Icônes & assets (originaux)
+	•	Crée src/icons/ avec SVG originaux (pas d’import d’images externes) :
+	•	Gem.svg, Coin.svg, Home.svg, Cart.svg, User.svg, Question.svg, Crown.svg, Wheel.svg, Reels.svg.
+	•	Crée 6–10 dos de cartes originaux en SVG dans src/assets/cardbacks/.
+	•	Conserve tes logos actuels ; ajoute seulement de nouveaux.
+
+Commit.
+
+⸻
+
+3) Barre de navigation (bottom bar)
+	•	Ne remplace pas la nav existante si elle marche.
+	•	Si elle n’existe pas, ajoute un composant BottomNav.tsx minimal sans casser Router :
+	•	3 onglets : Shop (gauche), Home (centre), Profile (droite).
+	•	Icônes SVG, effets press (scale 0.96 + opacité), halo doux.
+	•	Insère la bottom-bar là où c’est pertinent (layout racine) sans supprimer l’ancien layout.
+
+Commit.
+
+⸻
+
+4) Pages (retouche visuelle seulement)
+
+Home
+	•	En-tête : badges “chips” & “gems” (icône + valeur), halo brillant.
+	•	Grand compteur XP (typo large, tracking serré).
+	•	Carte “Play Blackjack” (gradient soft + CTA).
+	•	Weekly leaderboard (avatar stylisé, nom, XP).
+	•	Bouton flottant ? (aide).
+
+Shop
+	•	Bandeau Daily rewards/perks (paliers).
+	•	Sections Chests (Wooden/Silver/Golden), Chips, Gems (cards grid).
+	•	Liens vers Fortune Wheel & Lucky Reels (dans Rewards).
+	•	Boutons d’achat → appeler actions existantes. Si Stripe manque, afficher “Sandbox mode” et créditer en local.
+
+Profile
+	•	Avatar 3D/flat stylisé (SVG), bouton edit.
+	•	Cartes : Friends, Emotes, Card backs, Rank progress.
+	•	Bloc Statistics : radar + métriques (ui only ; brancher sur les states existants si disponibles, sinon placeholders).
+
+Pass (free/premium)
+	•	Grille 2 colonnes Free vs Premium, barre de progression de saison.
+	•	CTA “Unlock premium rewards” → si Stripe absent : sandbox.
+
+Rewards
+	•	Fortune Wheel (8–12 segments) avec animation CSS, barre “x spins until guaranteed chest”, deux CTA : Free (ad placeholder), 10 gems.
+	•	Lucky Reels (3 rouleaux) + timer.
+
+Play
+	•	Start Game : slider stakes/buy-in style Offsuit, “PUBLIC GAME” placeholder.
+	•	Table Blackjack :
+	•	Cartes blanches très arrondies, valeur centrée, symbole en bas (♥♦ rouges, ♠♣ noirs).
+	•	Boutons : Hit / Stand / Double / Split / Surrender (actifs/inactifs selon contexte).
+	•	Panneau Probabilités (encadré discret) : P(win)%, EV (chips), move conseillé.
+	•	Implémente le calcul via fonction pure (voir §5), sans toucher au reste du moteur si déjà présent.
+
+Important : Si une de ces pages existe déjà, ne pas la réécrire. Applique juste les classes Tailwind et remplace les icônes/containers par nos composants UI.
+
+Commit.
+
+⸻
+
+5) Panneau Probabilités (lib math)
+	•	Ajoute src/lib/math/blackjack.ts (ou complète le fichier existant) avec fonctions pures :
+	•	computeBestMove(state, rules) → renvoie {suggestion, winProb, ev}.
+	•	Si perfs insuffisantes, utilise Monte Carlo léger (2–5k tirages max) avec requestIdleCallback/setTimeout pour rester fluide.
+	•	Ne touche pas au moteur/état existant ; expose juste une API que l’UI consomme.
+
+Commit.
+
+⸻
+
+6) Économie (brancher sans casser)
+	•	Laisse Zustand/Supabase inchangés.
+	•	Si certaines ressources n’existent pas (gems, chips, xp, spins…), ajoute des champs en state ou localStorage fallback → sans casser les actions en place.
+	•	Les actions d’achat (Shop) : si Stripe non configuré, déclenche un mode sandbox (créditer la ressource + log local).
+
+Commit.
+
+⸻
+
+7) Accessibilité & animations
+	•	Transitions 150–250ms, 60fps (transform/opacity only).
+	•	Radius large, bordure 1px douce, ombres subtiles.
+	•	Test responsive 375–430px (mobile first).
+
+Commit.
+
+⸻
+
+8) Non-régression & vérifs
+	•	Aucune suppression d’imports, de routes ou d’APIs existantes.
+	•	Lancement dev OK, navigation OK, anciens écrans non-brisés.
+	•	Pages modifiées = style Offsuit des captures, assets 100% originaux.
+
+À la fin : git add -A && git commit -m "UI makeover Offsuit-style (safe, no destructive changes)".
+
+⸻
+
+9) Si l’agent propose de “rebuild from scratch”
+	•	Refuse et reste sur ce plan. On veut une refonte visuelle et UX, pas une ré-architecture.
+	•	Toute opération “create new app/stack” est interdite ici.

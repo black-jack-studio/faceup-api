@@ -1,0 +1,105 @@
+
+Intègre le bouton Apple dans ma page de signup.
+	•	Garde mon formulaire email + mot de passe comme il est.
+	•	Ajoute juste un séparateur — or — en dessous, puis le composant <AppleLoginButton />.
+	•	Le composant AppleLoginButton.tsx contient la logique supabase.auth.signInWithOAuth({ provider: 'apple' }).
+	•	Crée aussi AuthCallback.tsx pour gérer la redirection après connexion, créer un profil si besoin, puis envoyer l’utilisateur vers /app.
+
+Voici le code à utiliser :
+
+SignUp.tsx (extrait)
+
+import AppleLoginButton from './AppleLoginButton'
+
+export default function SignUp() {
+  return (
+    <div>
+      {/* ... ton formulaire email/password existant ... */}
+
+      <div style={{ marginTop: 16, marginBottom: 8, textAlign: 'center', opacity: 0.7 }}>
+        — ou —
+      </div>
+
+      <AppleLoginButton />
+    </div>
+  )
+}
+
+AppleLoginButton.tsx
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+)
+
+export default function AppleLoginButton() {
+  const handleAppleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: window.location.origin + '/auth/callback'
+      }
+    })
+    if (error) console.error('Erreur Apple login:', error.message)
+  }
+
+  return (
+    <button
+      onClick={handleAppleLogin}
+      style={{
+        backgroundColor: 'black',
+        color: 'white',
+        padding: '10px 16px',
+        borderRadius: '8px',
+        border: 'none',
+        fontWeight: '600',
+        cursor: 'pointer'
+      }}
+    >
+       Sign in with Apple
+    </button>
+  )
+}
+
+AuthCallback.tsx
+
+import { useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+)
+
+export default function AuthCallback() {
+  useEffect(() => {
+    const handleAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (!profile) {
+          await supabase.from('profiles').insert({
+            id: user.id,
+            username: user.email?.split('@')[0] ?? 'player'
+          })
+        }
+
+        window.location.assign('/app')
+      } else {
+        window.location.assign('/signup')
+      }
+    }
+
+    handleAuth()
+  }, [])
+
+  return <p>Sign in with Apple...</p>
+}

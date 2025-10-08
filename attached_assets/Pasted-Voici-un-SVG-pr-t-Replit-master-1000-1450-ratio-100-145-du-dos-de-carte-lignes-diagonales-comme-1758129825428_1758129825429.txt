@@ -1,0 +1,48 @@
+Voici un SVG prêt Replit (master 1000×1450, ratio 100:145) du dos de carte à lignes diagonales comme ton exemple.
+✔️ Fond transparent • Carte arrondie #F5F5F5 • Lignes noires 45° régulières • Zone safe 8% (guides supprimables).
+
+<!-- Card Back — Diagonal Stripes (1000x1450) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1450" width="1000" height="1450">
+  <defs>
+    <!-- Motif de lignes diagonales 45° -->
+    <pattern id="diag" patternUnits="userSpaceOnUse" width="120" height="120" patternTransform="rotate(45)">
+      <rect width="120" height="120" fill="none"/>
+      <!-- épaisseur de ligne et couleur -->
+      <rect x="0" y="0" width="8" height="120" fill="#111111"/>
+    </pattern>
+    <!-- Rayon des angles de la carte -->
+    <style>
+      :root { --card-bg:#F5F5F5; --line:#111111; }
+    </style>
+    <!-- Clip pour garder les lignes à l'intérieur de la carte -->
+    <clipPath id="card-clip">
+      <rect x="40" y="40" width="920" height="1370" rx="80" ry="80"/>
+    </clipPath>
+  </defs>
+
+  <!-- (Fond général transparent) -->
+
+  <!-- Carte (fond clair) -->
+  <rect x="40" y="40" width="920" height="1370" rx="80" ry="80" fill="var(--card-bg)"/>
+
+  <!-- Inset pour laisser une marge intérieure autour des lignes (comme l’exemple) -->
+  <g clip-path="url(#card-clip)">
+    <rect x="90" y="90" width="820" height="1270" rx="60" ry="60" fill="url(#diag)"/>
+  </g>
+
+  <!-- (Optionnel) Zone safe 8% en guides — supprime ce bloc si tu n’en veux pas -->
+  <!--
+  <rect x="120" y="156" width="760" height="1138" rx="60" ry="60"
+        fill="none" stroke="#000" stroke-opacity="0.18" stroke-dasharray="22 16" stroke-width="6"/>
+  -->
+</svg>
+
+Utilisation dans ton pipeline
+	•	Place ce fichier dans src_svgs/ (ex. striped_clean.svg).
+	•	Ajoute au manifest source :
+
+{ "name": "Striped Clean", "slug": "striped-clean", "rarity": "common", "src": "striped_clean.svg" }
+
+	•	Lance le script de génération pour obtenir le WebP 512×742 optimisé.
+
+Tu veux une variante plus fine/plus épaisse, ou avec espacement différent ? Je te donne la version en changeant simplement width du motif (espacement) et la largeur de la barre (width="8").

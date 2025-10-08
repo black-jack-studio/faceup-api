@@ -1,0 +1,63 @@
+Build a polished Blackjack trainer web app (React + TypeScript + Vite + Tailwind).
+Name: Offsuit-Blackjack (web).
+
+### Goals
+- Educational blackjack “coach” (NOT gambling): teaches optimal play & counting.
+- UX inspired by Offsuit: clean, fast, tactile, dark theme by default; smooth micro-animations.
+
+### Stack
+- Front: React + TS + Vite + Tailwind + Framer Motion.
+- State: Zustand.
+- Auth/DB: Supabase (email + Google).
+- Payments (web): Stripe test-mode (Checkout + Webhooks stub on /api/stripe).
+- PWA: manifest + service worker (installable).
+- Feature flags if keys missing: disable Shop/Payments gracefully.
+
+### Routes / Screens
+/               -> Home (CTA: “S’entraîner”, “Drills”, “Comptage”, “Boutique”)
+ /practice      -> Enter player hand (cards), dealer upcard; rule presets (decks 1/2/6/8, H17/S17, DAS, RSA, surrender on/off); live advice with EV deltas; show “Basic Strategy card” overlay.
+ /trainer       -> Drill mode: time-boxed questions (Hit/Stand/Double/Split/Surrender). Streaks, XP, coins rewards.
+ /counting      -> Shoe simulator: deal stream of cards, user taps running count; show accuracy, speed; supports Hi-Lo (indices seeded).
+ /shop          -> Coins (earn), Gems (buy via Stripe), cosmetic card backs/themes; daily spin (free 1/day) with weighted rewards.
+ /profile       -> Stats (accuracy by hand type, average EV loss, counting WPM), inventory (cosmetics), settings (units, sounds, haptics).
+ /auth/*        -> Auth screens.
+
+### Core logic
+- Implement rules engine with config: decks, H17/S17, DAS, RSA, late surrender.
+- Basic strategy tables for hard/soft/pairs (S17 by default; generate H17 variant).
+- Decision engine returns: suggested action + EV for each candidate.
+- Counting: Hi-Lo (+1 for 2–6, 0 for 7–9, −1 for T-A); running + true count (decks remaining slider).
+- Indices: add a small set of common deviations (e.g., 16v10, 12v3, 10vT, A,7v2/3/7, etc.). Gate advanced deviations behind higher level.
+
+### Economy
+- Coins: earned via drills/practice streak; used to unlock drills, spins.
+- Gems: premium via Stripe; used to buy cosmetics or extra spins.
+- Daily spin: simple roulette component with easing animation; prizes: coins, small gems, cosmetic, “booster” (e.g., +10% coins for 1h). Enforce 1/day in Supabase.
+
+### Data & Storage
+- Supabase tables: users, profiles, inventory (cosmetics), economy_wallet (coins,gems), transactions, daily_spin_log, settings, stats_session.
+- Seed a handful of card-back svgs and themes.
+- Stats aggregation endpoints: /api/stats/summary
+
+### UX details
+- Keyboard & swipe shortcuts in Practice (left=Hit, up=Stand, right=Double, split key when allowed).
+- Reveal EV bars per action (subtle).
+- Confetti on milestones; haptic (emulated) on correct drills.
+- Accessible color contrast; mobile-first.
+
+### Code quality
+- Components in /src/components; pages in /src/pages (or /src/routes if using React Router).
+- Utility modules: blackjack/strategy.ts, blackjack/ev.ts, blackjack/counting.ts.
+- Zustand store for session; persist key prefs in localStorage.
+- Stripe keys via env; if absent, hide Buy buttons.
+
+### Nice to have (scaffold placeholders)
+- Leaderboard (local mock).
+- Achievements list.
+- Localization ready (fr/en json).
+
+Deliver:
+- Running dev server.
+- Seed data, basic strategy CSV/JSON.
+- Fake webhook handler that just logs in dev.
+- README (setup, env vars, how to run, how to disable payments).

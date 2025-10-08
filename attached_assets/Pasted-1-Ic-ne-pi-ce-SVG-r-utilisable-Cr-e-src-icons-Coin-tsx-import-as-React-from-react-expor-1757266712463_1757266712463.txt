@@ -1,0 +1,206 @@
+1) Icône pièce (SVG réutilisable)
+
+Crée src/icons/Coin.tsx :
+
+import * as React from "react";
+
+export type CoinProps = {
+  size?: number;         // px
+  className?: string;    // tailwind etc.
+  glow?: boolean;        // halo externe
+};
+
+export default function Coin({ size = 24, className = "", glow = false }: CoinProps) {
+  const s = size;
+  const rOuter = s * 0.48;
+  const cx = s / 2;
+  const cy = s / 2;
+
+  return (
+    <svg
+      width={s}
+      height={s}
+      viewBox={0 0 ${s} ${s}}
+      className={className}
+      aria-hidden
+    >
+      {/* Glow externe */}
+      {glow && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={rOuter}
+          fill="none"
+          stroke="rgba(248,202,90,0.35)"
+          strokeWidth={s * 0.14}
+          filter="url(#coin-blur)"
+        />
+      )}
+
+      <defs>
+        {/* léger blur pour le glow */}
+        <filter id="coin-blur">
+          <feGaussianBlur stdDeviation={s * 0.12} />
+        </filter>
+
+        {/* face principale (doré) */}
+        <radialGradient id="coin-fill" cx="50%" cy="40%" r="65%">
+          <stop offset="0%" stopColor="#FFE28A" />
+          <stop offset="45%" stopColor="#F8CA5A" />
+          <stop offset="100%" stopColor="#D89B2C" />
+        </radialGradient>
+
+        {/* bord extérieur plus sombre */}
+        <linearGradient id="coin-edge" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#8A5D19" />
+          <stop offset="100%" stopColor="#5A3F12" />
+        </linearGradient>
+
+        {/* reflet glossy */}
+        <linearGradient id="coin-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0.0)" />
+        </linearGradient>
+
+        {/* ombre interne subtile */}
+        <filter id="coin-inner-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feOffset dx="0" dy="1" />
+          <feGaussianBlur stdDeviation={s * 0.03} result="offset-blur" />
+          <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+          <feFlood floodColor="rgba(0,0,0,0.35)" result="color" />
+          <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+          <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+        </filter>
+      </defs>
+
+      {/* tranche extérieure */}
+      <circle cx={cx} cy={cy} r={rOuter} fill="url(#coin-edge)" />
+
+      {/* face */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={s * 0.42}
+        fill="url(#coin-fill)"
+        filter="url(#coin-inner-shadow)"
+      />
+
+      {/* “mint mark” (petit sigle) – simple losange stylisé */}
+      <g transform={translate(${cx}, ${cy})}>
+        <path
+          d={M 0 ${-s * 0.17} L ${s * 0.12} 0 L 0 ${s * 0.17} L ${-s * 0.12} 0 Z}
+          fill="#FFE9B0"
+          opacity="0.85"
+        />
+        <path
+          d={M 0 ${-s * 0.13} L ${s * 0.09} 0 L 0 ${s * 0.13} L ${-s * 0.09} 0 Z}
+          fill="#B97C1A"
+          opacity="0.35"
+        />
+      </g>
+
+      {/* reflet haut */}
+      <ellipse
+        cx={cx}
+        cy={cy - s * 0.18}
+        rx={s * 0.22}
+        ry={s * 0.10}
+        fill="url(#coin-gloss)"
+      />
+    </svg>
+  );
+}
+
+	•	Look : doré avec bord sombre, reflet glossy, halo optionnel.
+	•	Qualité : vectoriel, net à toutes tailles; pas d’assets bitmap.
+
+⸻
+
+2) Badge “Coins + amount”
+
+Crée src/components/CoinsBadge.tsx :
+
+import * as React from "react";
+import Coin from "@/icons/Coin";
+
+type Props = {
+  amount: number | string;
+  glow?: boolean;
+  className?: string; // pour margin externe
+  size?: "sm" | "md" | "lg";
+};
+
+const sizeMap = {
+  sm: { icon: 16, padX: "px-2.5", padY: "py-1", text: "text-[12px]" },
+  md: { icon: 20, padX: "px-3",   padY: "py-1.5", text: "text-[13px]" },
+  lg: { icon: 24, padX: "px-3.5", padY: "py-2", text: "text-[15px]" },
+};
+
+export default function CoinsBadge({ amount, glow = false, className = "", size = "md" }: Props) {
+  const s = sizeMap[size];
+  return (
+    <div
+      className={[
+        "inline-flex items-center gap-2 rounded-full bg-white/6 ring-1 ring-white/10",
+        "backdrop-blur-[1px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]",
+        s.padX, s.padY, className,
+      ].join(" ")}
+      role="status"
+      aria-label={Coins: ${amount}}
+    >
+      <Coin size={s.icon} glow={glow} />
+      <span className={["font-medium text-white/90 tabular-nums", s.text].join(" ")}>
+        {typeof amount === "number" ? amount.toLocaleString() : amount}
+      </span>
+    </div>
+  );
+}
+
+Utilisation rapide :
+
+import CoinsBadge from "@/components/CoinsBadge";
+
+<CoinsBadge amount={1000} glow size="lg" />
+
+⸻
+
+3) Remplacer partout dans l’app
+	1.	Centraliser l’affichage des pièces
+	•	Cherche où les pièces sont rendues (emoji, image ou icône maison).
+	•	Remplace ces usages par CoinsBadge pour les compteurs, ou Coin seul quand tu n’as pas besoin du montant.
+Exemples:
+	•	Header (compteur en haut à gauche) :
+
+<CoinsBadge amount={coins} glow size="sm" />
+
+	•	Bouton d’achat :
+
+<button className="...">
+  <Coin size={18} className="mr-2" />
+  Buy 1,000
+</button>
+
+	2.	Refactor minimal et sûr
+	•	Si tu avais un composant CurrencyBadge/CoinCount, remplace son contenu interne par CoinsBadge pour tout uniformiser sans toucher aux appels existants.
+	•	Sinon, fais un find & replace sur la base de code :
+	•	Cherche 🪙, coin, coins, ou le nom de l’ancienne icône.
+	•	Remplace par <CoinsBadge ... /> (pour les compteurs) ou <Coin ... /> (icône seule).
+	3.	Design tokens (optionnel)
+Si tu veux régler la teinte facilement, expose des CSS vars Tailwind dans tailwind.config.js ou via :root :
+
+:root {
+  --coin-edge-1: #8A5D19;
+  --coin-edge-2: #5A3F12;
+  --coin-fill-1: #FFE28A;
+  --coin-fill-2: #F8CA5A;
+  --coin-fill-3: #D89B2C;
+}
+
+Puis remplace les couleurs fixes dans le SVG par var(--coin-...) si tu veux pouvoir “skinner” facilement.
+
+⸻
+
+4) Accessibilité & perfs
+	•	Les composants sont SVG purs, donc ultra nets et rapides.
+	•	aria-label sur le badge → lecteurs d’écran OK.
+	•	Le glow est optionnel; garde-le pour les mises en avant (Home/Shop), désactive-le quand il y a beaucoup d’instances à l’écran.

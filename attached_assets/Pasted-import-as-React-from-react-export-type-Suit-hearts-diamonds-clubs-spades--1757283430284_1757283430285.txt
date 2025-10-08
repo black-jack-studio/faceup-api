@@ -1,0 +1,96 @@
+import * as React from "react";
+
+export type Suit = "hearts" | "diamonds" | "clubs" | "spades";
+
+/** Couleurs: rouge pour ♥ ♦, gris/noir pour ♣ ♠ (Offsuit-like) */
+export const suitColor = (s: Suit) =>
+  s === "hearts" || s === "diamonds" ? "#E55C73" : "#25292F";
+
+/* ─────────────────────  HEARTS (♥)  ───────────────────── */
+export const Hearts: React.FC<{ size?: number; color?: string; className?: string }> = ({
+  size = 18,
+  color,
+  className = "",
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    className={className}
+    aria-hidden
+  >
+    <path
+      fill={color ?? "#E55C73"}
+      d="M12 21s-7.55-4.82-9.5-8.08C.96 10.08 2.12 6.5 5.38 6.5c2.1 0 3.17 1.12 3.87 2.17.7-1.05 1.77-2.17 3.87-2.17 3.26 0 4.42 3.58 2.88 6.42C19.55 16.18 12 21 12 21z"
+    />
+  </svg>
+);
+
+/* ─────────────────────  DIAMONDS (♦)  ───────────────────── */
+export const Diamonds: React.FC<{ size?: number; color?: string; className?: string }> = ({
+  size = 18,
+  color,
+  className = "",
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    className={className}
+    aria-hidden
+  >
+    <path fill={color ?? "#E55C73"} d="M12 2l7 10-7 10-7-10 7-10z" />
+  </svg>
+);
+
+/* ─────────────────────  CLUBS (♣)  ───────────────────── */
+export const Clubs: React.FC<{ size?: number; color?: string; className?: string }> = ({
+  size = 18,
+  color,
+  className = "",
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    className={className}
+    aria-hidden
+  >
+    <path
+      fill={color ?? "#25292F"}
+      d="M12 22a1 1 0 01-1-1v-2.1a5 5 0 01-2.9.9 4.9 4.9 0 01-4.1-2.3 4.9 4.9 0 018-5.3 4.9 4.9 0 11-3.9-8 4.9 4.9 0 014 2.1 4.9 4.9 0 018 5.9 4.9 4.9 0 01-4.1 2.3 5 5 0 01-2.9-.9V21a1 1 0 01-1 1z"
+    />
+  </svg>
+);
+
+/* ─────────────────────  SPADES (♠)  ───────────────────── */
+export const Spades: React.FC<{ size?: number; color?: string; className?: string }> = ({
+  size = 18,
+  color,
+  className = "",
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    className={className}
+    aria-hidden
+  >
+    <path
+      fill={color ?? "#25292F"}
+      d="M12 2s7.5 5.3 7.5 10.2A3.8 3.8 0 0115.8 16H14a5.5 5.5 0 01.6 2.6A3.4 3.4 0 0111 22a3.4 3.4 0 01-3.6-3.4A5.5 5.5 0 018 16H6.2A3.8 3.8 0 014.5 12.2C4.5 7.3 12 2 12 2z"
+    />
+  </svg>
+);
+
+/* ─────────────────────  Helper  ───────────────────── */
+export const SuitIcon: React.FC<{
+  suit: Suit;
+  size?: number;
+  className?: string;
+}> = ({ suit, size = 18, className }) => {
+  if (suit === "hearts") return <Hearts size={size} className={className} />;
+  if (suit === "diamonds") return <Diamonds size={size} className={className} />;
+  if (suit === "clubs") return <Clubs size={size} className={className} />;
+  return <Spades size={size} className={className} />;
+};

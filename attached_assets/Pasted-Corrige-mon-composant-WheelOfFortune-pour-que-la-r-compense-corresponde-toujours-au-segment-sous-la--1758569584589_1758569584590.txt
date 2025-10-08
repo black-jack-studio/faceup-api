@@ -1,0 +1,57 @@
+Corrige mon composant WheelOfFortune pour que la récompense corresponde toujours au segment sous la flèche blanche (12h), et non plus un résultat aléatoire ou basé sur le DOM.  
+
+Voici ce qu’il faut faire :  
+1. Supprime ou ignore toute la logique `winningIndexByDOM`.  
+2. Ajoute une fonction `winningIndexByRotation` qui calcule l’index gagnant en fonction de l’angle final de rotation de la roue :
+
+```ts
+const sector = 360 / segments.length;
+const norm = (d: number) => ((d % 360) + 360) % 360;
+
+const winningIndexByRotation = (theta: number) => {
+  const t = norm(theta);
+  const adjusted = (360 - t + sector / 2) % 360;
+  return Math.floor(adjusted / sector);
+};
+
+	3.	Dans performActualSpin, après avoir défini finalRotation, remplace le setTimeout qui calcule la récompense par ce code :
+
+setTimeout(async () => {
+  const winIndex = winningIndexByRotation(finalRotation);
+  const winningSegment = segments[winIndex];
+
+  const reward: WheelReward = {
+    type: winningSegment.type as 'coins' | 'gems' | 'xp' | 'tickets',
+    amount: winningSegment.amount,
+  };
+
+  setReward(reward);
+
+  try {
+    await apiRequest("POST", "/api/wheel-of-fortune/spin", {
+      rewardType: reward.type,
+      rewardAmount: reward.amount,
+    });
+
+    if (reward.type === 'coins') {
+      updateUser({ coins: (user?.coins || 0) + reward.amount });
+    } else if (reward.type === 'gems') {
+      updateUser({ gems: (user?.gems || 0) + reward.amount });
+    } else if (reward.type === 'tickets') {
+      updateUser({ tickets: (user?.tickets || 0) + reward.amount });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/user/coins"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/spin/status"] });
+  } catch (e) {
+    console.error("API call failed:", e);
+  }
+
+  setIsSpinning(false);
+  setShowReward(true);
+  setShouldAnimate(false);
+}, 3000);
+
+Résultat attendu :
+👉 Quand la roue s’arrête, le segment affiché pile sous la flèche est exactement le reward affiché et attribué au joueur.

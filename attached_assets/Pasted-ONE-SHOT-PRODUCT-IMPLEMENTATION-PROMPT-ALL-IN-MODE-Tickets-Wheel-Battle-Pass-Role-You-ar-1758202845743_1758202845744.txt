@@ -1,0 +1,185 @@
+ONE-SHOT PRODUCT & IMPLEMENTATION PROMPT — “ALL-IN” MODE (Tickets, Wheel, Battle Pass)
+
+Role: You are the lead full-stack engineer. Implement a new game mode “All-in” and all supporting systems. If files already exist, replace them. Keep palette strictly black/gray/white (no brand colors).
+
+0) Feature Overview
+	•	New mode card: All-in — description:
+“Go all or nothing. Bet everything you have: triple on win, lose it all on defeat. Tickets required.”
+Display on the card: ticket icon + user ticket count.
+	•	Entry requires Tickets (new currency). Tickets can be won via:
+	1.	Wheel of Fortune (adjust reward table to include Tickets),
+	2.	Battle Pass milestones (both Free and Premium tracks).
+Rewards grant 1, 3, or 5 tickets.
+	•	Game rule: Bet must equal 100% of current coins.
+If WIN → coins *= 3.
+If LOSE → coins = 0, but refund 5% of pre-bet coins into bonusCoins (non-withdrawable, playable).
+Win probability is intentionally hard (configurable server-side).
+	•	Flow: Tap “All-in” → go to Bet page (same layout as our new sober slider UI), but only “MAX” is available. User must select MAX; otherwise play is disabled.
+
+⸻
+
+1) Data Model (create/extend)
+
+type User = {
+  id: string;
+  coins: number;        // main spendable coins
+  bonusCoins: number;   // rebate storage, playable only
+  allInLoseStreak: number;
+  cooldownUntil?: string | null; // optional future use
+  level: number;        // for Battle Pass progression
+};
+
+type Ticket = {          // Track aggregate count per user (or keep as counter)
+  userId: string;
+  count: number;        // total available tickets
+  updatedAt: string;
+};
+
+type AllInRun = {
+  id: string;
+  userId: string;
+  preBalance: number;   // coins before the bet
+  betAmount: number;    // equals preBalance
+  result: 'WIN' | 'LOSE';
+  multiplier: number;   // 3 on win, 0 on lose
+  payout: number;       // net coins added on win
+  rebate: number;       // 5% rebate to bonusCoins on loss
+  createdAt: string;
+};
+
+type Config = {
+  allInWinProbability: number; // e.g. 0.28 (HARD). Keep < 0.35 to stay profitable.
+  lossRebatePct: number;       // 0.05
+  wheelTicketWeights: {one: number; three: number; five: number}; // e.g. {one: 6, three: 3, five: 1}
+  passTicketAmounts: number[]; // milestones e.g. [1,3,5]
+};
+
+
+⸻
+
+2) Backend — Endpoints & Logic (Node/Express or adapt to stack)
+
+Auth required for all. Server is authoritative. Use transactions/locks.
+	•	GET /allin/status →
+{ coins, bonusCoins, tickets, winProb, lossRebatePct }
+	•	POST /allin/start
+Flow:
+	1.	Load user + ticket row (FOR UPDATE). Ensure tickets.count > 0 and user.coins > 0.
+	2.	betAmount = user.coins (100% max).
+	3.	Consume 1 ticket (tickets.count -= 1).
+	4.	Draw outcome with hard probability:
+
+const win = Math.random() < config.allInWinProbability; // e.g. 0.28
+
+
+	5.	If win:
+	•	multiplier = 3
+	•	payout = betAmount * 2 (since coins already include bet; final coins = pre + payout = 3x)
+	•	user.coins += payout
+	•	user.allInLoseStreak = 0
+	6.	If lose:
+	•	user.coins = 0
+	•	rebate = Math.floor(betAmount * config.lossRebatePct) (5%)
+	•	user.bonusCoins += rebate
+	•	user.allInLoseStreak += 1
+	7.	Insert AllInRun audit; commit transaction.
+	8.	Return { result, multiplier, payout, rebate, coins: user.coins, bonusCoins: user.bonusCoins, tickets: tickets.count }
+
+	•	Wheel integration changes (POST /wheel/spin):
+	•	Update reward table to include Tickets with 3 rarity bands:
+	•	1 Ticket (most common of ticket drops),
+	•	3 Tickets,
+	•	5 Tickets (rare).
+	•	Rebalance by replacing some coin/gem outcomes with tickets (do not increase total EV).
+	•	When tickets drop, increment Ticket.count accordingly.
+	•	Battle Pass integration:
+	•	Update pass milestone rewards (both Free & Premium tracks) to include tickets at multiple tiers using Config.passTicketAmounts [1,3,5].
+	•	On claim: Ticket.count += rewardTickets.
+
+⸻
+
+3) Frontend — Mode Card & Bet Page
+
+Mode Card “All-in”
+	•	Card title: All-in
+	•	Subtitle (short): “Bet it all. Triple or nothing. Tickets required.”
+	•	Right side badge: 🎟️ x{userTickets} (live count).
+	•	Tap → navigate to Bet screen (below).
+
+Bet Page (reuse our sober Apple-Wallet style)
+	•	Top card (rounded bottom, soft shadow) showing:
+	•	Balance (small, gray),
+	•	Label YOUR BET,
+	•	Big amount (bind to slider value).
+	•	Slider: same visual as our mockup (black/gray/white).
+	•	BUT: Only MAX is allowed.
+	•	UI still shows slider + only one pill: “MAX” (selected).
+	•	Disable Confirm until t === 1.0.
+	•	When t < 1, show hint: “All-in mode requires betting 100% of your coins.”
+	•	CTA: PLAY ALL-IN (white button).
+	•	On press: call /allin/start, then show result screen (win confetti or loss with “5% Safe Return applied”).
+
+Edge cases UI
+	•	If tickets === 0 → CTA becomes GET TICKETS, route to shop/wheel/pass screens.
+	•	If coins === 0 → show No coins. Earn or buy coins to play. Disable CTA.
+	•	Show Tickets: xN under CTA for clarity.
+
+⸻
+
+4) Wheel & Pass Reward Tables (rebalance)
+	•	Wheel: inject ticket outcomes; reduce coin/gem probabilities proportionally. Example weights:
+	•	Coins outcomes: reduce by 10–15% of total mass,
+	•	Gems outcomes: reduce slightly,
+	•	Tickets outcomes (total new mass ~10–15%):
+	•	1 Ticket: weight 6
+	•	3 Tickets: weight 3
+	•	5 Tickets: weight 1
+	•	Pass: place ticket rewards at milestones (both tracks). Example:
+	•	Free track: levels 3 (×1), 10 (×3), 18 (×5)
+	•	Premium track: levels 2 (×1), 7 (×3), 15 (×5)
+	•	Ensure UI shows a ticket icon and counts on claim screens.
+
+⸻
+
+5) Config & Profitability Guardrails
+	•	In Config, set:
+	•	allInWinProbability = 0.25–0.30 (HARD)
+	•	lossRebatePct = 0.05
+	•	Keep EV ≤ 1 to remain profitable:
+EV ≈ p*3 + (1−p)*0.05 on principal, with p ≤ 0.30 gives EV < 1.
+	•	Add admin hook to tweak allInWinProbability without redeploy.
+
+⸻
+
+6) Accessibility, Haptics, & Polish
+	•	Slider and CTA hit-areas ≥ 44pt.
+	•	Haptics: light success on win; warning on loss; selection on MAX.
+	•	Animations: thumb scale on drag; number tween (120–180ms).
+	•	Palette tokens (CSS/StyleSheet):
+	•	bg:#0F1012, card:#1C1D21→#24262B, barBase:#2B2D32, barFill:#E5E7EB→#FFFFFF, pillBg:#2A2B30, pillBorder:#5A5C63, ctaBg:#FFFFFF, ctaText:#15161A.
+
+⸻
+
+7) Acceptance Tests (must pass)
+	•	With 10,000 coins and 2 tickets: Bet page shows MAX only; Confirm disabled until MAX; play consumes 1 ticket.
+	•	Wheel can drop 1/3/5 tickets; Ticket.count increments accordingly.
+	•	Pass milestones grant tickets on claim (free & premium).
+	•	/allin/start rejects when tickets==0 or coins==0.
+	•	Loss: coins→0, bonusCoins += 5% prebalance.
+	•	Win: final coins = 3× prebalance.
+	•	Probability adjustable via Config; default hard setting applied.
+	•	Mode card displays current ticket count.
+
+⸻
+
+8) Deliverables
+	•	Backend: models/migrations for Ticket, AllInRun, Config; endpoints /allin/status, /allin/start; wheel/pass reward updates.
+	•	Frontend:
+	•	Mode card All-in (with ticket count badge),
+	•	Bet page (sober slider UI, MAX-only, confirm gating),
+	•	Result screen (win/lose),
+	•	Shop/Wheel/Pass links to earn tickets.
+	•	Tests for math, probabilities, reward granting, and endpoint contracts.
+
+Implement now for the detected stack (React Native / Flutter / Web React). Replace legacy bet flows for this mode only; do not affect other modes.
+

@@ -1,0 +1,115 @@
+
+🔧 ONE-SHOT MIGRATION PROMPT — REPLACE “BET” PAGE (BLACKJACK)
+
+You are the project’s lead engineer.
+Task: Replace the current bet screen with a polished Apple-Wallet/Offsuit-inspired layout and a dynamic bet system where the max bet = user’s current coin balance (changes every time). Implement both frontend UI and backend endpoints. If a file already exists, replace it. Do not keep legacy UI (ticks/markers) or static caps.
+
+0) Detect tech & set paths
+	•	If project is React Native/Expo → use:
+	•	src/screens/BetScreen.tsx
+	•	src/components/BetSlider.tsx
+	•	src/theme/tokens.ts
+	•	API client in src/lib/api.ts
+	•	If Flutter → use:
+	•	lib/screens/bet_screen.dart
+	•	lib/widgets/bet_slider.dart
+	•	lib/core/theme/tokens.dart
+	•	API client in lib/data/api_client.dart
+	•	If Web React → src/pages/Bet.tsx, src/components/BetSlider.tsx, src/theme/tokens.ts, src/lib/api.ts.
+Choose the matching path and implement.
+
+1) Visual spec (strict)
+	•	Palette only: black/gray/white. No brand colors.
+	•	bg: #0F1012
+	•	card: #1C1D21 … #24262B (very subtle)
+	•	barBase: #2B2D32
+	•	barFill: gradient #D9DADE → #FFFFFF (subtle)
+	•	pillBg: #2A2B30, pillBorder: #5A5C63
+	•	ctaBg: #FFFFFF, ctaText: #15161A
+	•	Layout (top → bottom):
+	1.	Top card full-width with rounded bottom corners (radius ~40), soft drop shadow below. Inside, centered:
+	•	Balance (small, gray-light)
+	•	Label YOUR BET (small caps, letter-spacing)
+	•	Big amount (e.g., 3,700) bold, white
+	2.	Slider right under the card:
+	•	Base bar dark gray, filled part light gray→white gradient
+	•	White circular thumb with tiny glossy highlight + soft shadow
+	•	No ticks
+	3.	Pills: 25% | 50% | MAX (rounded, dark, light border, soft shadow)
+	4.	Spacer
+	5.	CTA bottom: big rounded white button CONFIRM BET with soft shadow
+	•	Micro-polish: 60fps animations, easing; on drag, thumb scale 1.04; bet number tween 120–180ms.
+
+2) State & math (authoritative)
+	•	Inputs: userId (from session), balance fetched on mount, optional minBet (default 1), optional tableMax.
+	•	Compute:
+
+dynamicMax = min(balance, tableMax || Infinity)
+t ∈ [0..1] from slider position
+bet = clamp( round(dynamicMax * t), minBet, dynamicMax )
+
+
+	•	Pills: set t to 0.25 | 0.5 | 1.0, recompute bet.
+	•	Disable slider/CTA if balance < minBet (show hint “Insufficient balance”).
+	•	If balance === 0 show GET COINS CTA that routes to the shop.
+
+3) Frontend component contracts
+
+Props & behavior (BetSlider)
+	•	Props: { min: number; max: number; value: number; onChange: (v:number)=>void; onRelease?: (v:number)=>void }
+	•	Renders the styled bar + thumb; maps drag X → t → value with the formula above.
+	•	Accessibility: hit area ≥ 44×44pt; VoiceOver label “Bet slider, current X of Y”.
+	•	Haptics (if available): light impact at 25/50/100%.
+
+Screen (BetScreen)
+	•	On mount: GET /users/me → set balance; compute dynamicMax.
+	•	Local state: t, bet, loading, error.
+	•	Actions:
+	•	Confirm → POST /bets/prepare { amount: bet } then navigate to game with { betId }
+	•	Before calling, re-fetch /users/me, recompute dynamicMax, re-clamp bet to avoid stale race.
+
+4) Backend endpoints (create if missing)
+
+Implement minimal endpoints (Node/Express or current backend stack). Never trust client bet.
+	•	GET /users/me → { id, coins }
+	•	POST /bets/prepare body { amount }
+	•	Server: load user → dynamicMax = min(user.coins, tableMax?)
+	•	Validate minBet ≤ amount ≤ dynamicMax
+	•	Create BetDraft { betId, userId, amount, expiresAt: now+60s }
+	•	Return { betId, amount }
+	•	POST /bets/commit { betId } → verify draft, deduct coins atomically, return { success:true }
+	•	POST /bets/cancel { betId } → unlock if not committed
+	•	Auth: session/JWT. Idempotency on commit.
+
+Simple types
+
+type User = { id: string; coins: number };
+type BetDraft = { betId: string; userId: string; amount: number; createdAt: string; expiresAt: string };
+
+5) Concrete code (generate for detected stack)
+
+If React Native/Expo (TSX)
+	•	Create/replace src/theme/tokens.ts with color/spacing tokens above.
+	•	Create src/components/BetSlider.tsx with PanGesture (Reanimated or RN Gesture Handler) implementing the math and visuals.
+	•	Create/replace src/screens/BetScreen.tsx rendering the top card, slider, pills, CTA, and hitting the API.
+	•	Add haptics (Expo Haptics) at 25/50/100.
+	•	Add src/lib/api.ts with getMe(), prepareBet(amount), commitBet(betId).
+
+If Flutter
+	•	bet_slider.dart: GestureDetector + CustomPainter for bar/filled/handle; map dx→t.
+	•	bet_screen.dart: FutureBuilder for balance, AnimatedSwitcher for bet text, ElevatedButton CTA.
+	•	api_client.dart: getMe(), prepareBet(), commitBet().
+
+6) Acceptance tests (must pass)
+	•	Open screen with balance=10_000 → default t≈0.37 shows ≈ 3,700.
+	•	Tap 25% → shows 2,500; 50% → 5,000; MAX → 10,000.
+	•	Set minBet=100 & balance=500 → clamp between 100 and 500.
+	•	While confirming, if backend balance changed, client re-fetches and re-clamps; server rejects invalid amount.
+	•	No ticks rendered; only the clean slider bar.
+	•	Palette strictly black/gray/white; polish: soft shadows, rounded bottom on the top card.
+
+7) Remove legacy
+
+Delete or stop rendering any old bet UI (ticks/markers, static steps, hardcoded max). Ensure only the new BetScreen is reachable.
+
+Deliver full code changes now for the detected tech path, with files created/replaced as specified, including the backend handlers and wiring.

@@ -1,0 +1,56 @@
+Voici un SVG propre et scalable du dos de carte (fond blanc, bordure arrondie uniforme, motifs noirs minimalistes). Tu peux le coller tel quel dans Replit. Les tailles/couleurs sont faciles à ajuster via les variables en haut.
+
+<!-- Card back - white with rounded black border + orbital motif -->
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="980" viewBox="0 0 700 980">
+  <!-- === params (faciles à modifier) === -->
+  <defs>
+    <style>
+      :root {
+        --border: #000;      /* couleur de la bordure */
+        --ink: #000;         /* couleur des traits/motifs */
+        --bg: #fff;          /* fond de la carte */
+      }
+    </style>
+  </defs>
+
+  <!-- Fond -->
+  <rect x="0" y="0" width="700" height="980" fill="var(--bg)"/>
+
+  <!-- Bordure arrondie uniforme (épaisseur identique sur tout le pourtour) -->
+  <!-- Astuce: on dessine la bordure "à l'intérieur" du rectangle via un padding fixe (m). -->
+  <g stroke="var(--border)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- m = marge intérieure pour que le trait reste uniforme -->
+    <!-- Ici: m=20 et stroke-width=20 -> bord visuel de ~20px tout autour -->
+    <rect x="20" y="20" width="660" height="940" rx="40" ry="40" stroke-width="20"/>
+  </g>
+
+  <!-- Motif orbital (lignes noires, style épuré) -->
+  <g stroke="var(--ink)" fill="none" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cercles concentriques centraux -->
+    <circle cx="350" cy="520" r="250"/>
+    <circle cx="350" cy="520" r="170"/>
+
+    <!-- Noyau plein -->
+    <circle cx="350" cy="520" r="22" fill="var(--ink)"/>
+
+    <!-- "Satellites" sur l’orbite principale (deux petits cercles) -->
+    <!-- Satellite en haut-droite -->
+    <circle cx="475" cy="304" r="22" fill="var(--bg)"/>
+    <circle cx="475" cy="304" r="22"/>
+    <!-- Satellite en bas-gauche -->
+    <circle cx="134" cy="645" r="22" fill="var(--bg)"/>
+    <circle cx="134" cy="645" r="22"/>
+
+    <!-- Arcs partiels en bord de carte (grands cercles rognés par le canvas) -->
+    <!-- Coin haut-gauche -->
+    <circle cx="-40" cy="120" r="210"/>
+    <!-- Coin bas-droit -->
+    <circle cx="740" cy="900" r="190"/>
+  </g>
+</svg>
+
+Notes rapides
+	•	Changer l’épaisseur de la bordure : modifie stroke-width="20" du <rect> de bordure, et ajuste x/y/width/height (marge m) si besoin pour garder le trait “à l’intérieur”.
+	•	Couleurs : remplace --border, --ink, --bg dans le <style>.
+	•	Taille : change width/height (l’aspect 5:7 est respecté via viewBox="0 0 700 980").
+	•	Tu peux dupliquer ce fichier et ne modifier que les cercles/arcs pour décliner d’autres dos tout en gardant la même bordure.

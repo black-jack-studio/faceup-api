@@ -1,0 +1,150 @@
+
+Objectif
+Refactor uniquement l’UI de l’écran de partie Blackjack pour adopter la disposition visuelle type Offsuit (captures fournies par l’utilisateur). Conserver toute la logique/moteur/état existants. Ne créer aucun nouveau flux de jeu ni table SQL ici : on ne change que le design de la table.
+
+Guidelines générales
+	•	Stack actuelle (React/TS/Tailwind/…): ne pas changer.
+	•	Pas de suppression de logique : on recompose l’UI avec des composants.
+	•	Design dark, minimal, bords très arrondis, ombres douces, micro-anim (scale/opacity 150–200ms).
+	•	Couleurs tokens (déjà présentes dans le projet si possible) :
+	•	fond: #0B0B0F / panneaux: #13151A / carte blanche #FFFFFF
+	•	accents: vert #B5F3C7, violet #B79CFF, bleu #8CCBFF, or #F8CA5A.
+
+⸻
+
+1) Cible de refactor (fichiers)
+	•	Ne recrée pas de page. Modifie le composant qui affiche la table/écran de jeu (ex: src/app/play/GameScreen.tsx ou équivalent).
+	•	Si nécessaire, crée des petits composants UI dans src/components/play/ et importe-les :
+	•	DealerHeader.tsx
+	•	HandCards.tsx
+	•	ActionBar.tsx
+	•	BetBadge.tsx
+	•	WinProbPanel.tsx
+
+⸻
+
+2) Nouveau layout (hiérarchie)
+
+<div className="relative h-full w-full bg-[#0B0B0F] text-white">
+  {/* TOP: croupier */}
+  <DealerHeader
+    avatar={dealerAvatar}                 // optionnel: emoji/icone
+    name="Dealer"
+    total={dealerTotalVisible}            // total partiel (uniquement si règles le permettent)
+    chips={tablePot}                      // ou rien si non pertinent
+  />
+
+  {/* Cartes du croupier (horizontal, centrées) */}
+  <HandCards
+    cards={dealerCards}                   // 1 visible + 1 face-down si en cours
+    faceDownIndices={[1]}                 // indices à retourner (selon état)
+    variant="dealer"
+  />
+
+  {/* Milieu : espace respirant, ou tips brefs s’il y a lieu */}
+
+  {/* BOTTOM: main du joueur + actions */}
+  <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-4">
+    {/* Infos joueur (total + mise) */}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className="h-8 w-8 rounded-full bg-white/6 ring-1 ring-white/10 flex items-center justify-center">
+          {/* avatar joueur si dispo */}
+          <span className="text-xl">🙂</span>
+        </div>
+        <div className="text-white/90 text-sm">
+          <div className="font-medium">You</div>
+          <div className="text-white/60 text-xs">Total: {playerTotal}</div>
+        </div>
+      </div>
+
+      <BetBadge amount={currentBet} /> {/* petit pill “Bet 200” */}
+    </div>
+
+    {/* Cartes du joueur */}
+    <HandCards
+      cards={playerCards}                 // gère aussi split: show 2 rangées si split actif
+      variant="player"
+      highlightTotal={true}
+    />
+
+    {/* Panneau Probabilité / EV / Move conseillé */}
+    <WinProbPanel
+      pWin={probabilities.win}
+      pPush={probabilities.push}
+      pLose={probabilities.lose}
+      ev={expectedValue}
+      advice={bestMove}                   // "HIT", "STAND", "DOUBLE", "SPLIT", "SURRENDER"
+    />
+
+    {/* Boutons d’action (iOS-like, larges, arrondis) */}
+    <ActionBar
+      canHit={canHit}
+      canStand={canStand}
+      canDouble={canDouble}
+      canSplit={canSplit}
+      canSurrender={canSurrender}
+      onHit={handleHit}
+      onStand={handleStand}
+      onDouble={handleDouble}
+      onSplit={handleSplit}
+      onSurrender={handleSurrender}
+    />
+  </div>
+</div>
+
+Important :
+	•	Enlever les éléments parasites actuels (scores de plusieurs joueurs, historiques verbeux, métriques non essentielles, etc.).
+	•	Le dealer est seul en haut. En bas, ma main + ma mise + mes actions.
+	•	Conserver les règles (carte face-down du croupier jusqu’au moment de la révélation).
+	•	Les cartes sont grosses, à bords très arrondis, ombre douce, valeur en gros au centre, symbole (♠ ♦ ♥ ♣) en bas. Rouge pour ♥♦, gris/noir pour ♠♣.
+	•	Micro-animations : apparition des cartes (scale+fade), bouton press (scale 0.98).
+
+⸻
+
+3) Comportements UI attendus
+	•	DealerHeader : avatar + “Dealer”, éventuel total visible (selon état), discret.
+	•	HandCards :
+	•	variant="dealer" affiche une carte face-down tant que la main n’est pas terminée.
+	•	variant="player" gère le split : si split actif, afficher 2 rangées de cartes avec un badge total sur chaque sous-main.
+	•	BetBadge : capsule sombre “Bet 200” (tokens or #F8CA5A pour l’icône coin).
+	•	WinProbPanel : petit encadré sombre (coin inférieur droit par défaut) avec :
+	•	P(win), EV, et move conseillé (texte concis + petite pastille de couleur).
+	•	Mise à jour live à chaque tirage/choix.
+	•	ActionBar : 3 à 5 boutons (Hit, Stand, Double, Split, Surrender) selon can*.
+	•	Style: grosses pastilles arrondies (Tailwind: rounded-[20px] bg-white/6 ring-1 ring-white/10 px-5 py-3 text-[15px] font-medium), état disabled = opacity-40 pointer-events-none.
+
+⸻
+
+4) Style (Tailwind rapides)
+	•	Carte (contour ombre douce) :
+	•	container : rounded-[18px] shadow-[0_6px_24px_rgba(0,0,0,0.35)] bg-white text-[#0B0B0F]
+	•	chiffre central : font-semibold text-[28px] tracking-tight
+	•	symbole bas : text-[14px] opacity-80
+	•	Panneaux : bg-[#13151A] rounded-2xl ring-1 ring-white/10
+	•	Micro-anim : transition-transform duration-150 ease-out will-change-transform
+
+⸻
+
+5) Intégration aux états existants
+
+Réutiliser l’état/moteur déjà en place :
+	•	Sources (exemples) : dealerCards, playerCards, playerTotal, dealerTotalVisible, currentBet, probabilities, expectedValue, bestMove, booléens canHit, etc.
+	•	Aucune re-implémentation d’algorithme. Si certaines valeurs n’existent pas encore (ex. probabilities), afficher un fallback UI discret jusqu’à ce qu’elles soient calculées.
+
+⸻
+
+6) Acceptance criteria
+	•	Le dealer s’affiche seul en haut avec ses cartes centrées.
+	•	En bas : infos joueur (avatar + “Total: X”), badge de mise, puis cartes joueur, puis panneau probabilité/EV/conseil, puis barre d’actions.
+	•	Tous les éléments superflus précédents de l’écran sont retirés.
+	•	Responsive 375–430px, 60fps, dark, arrondis/ombres style Offsuit.
+	•	Aucun changement de logique jeu/règles/flux. UI uniquement.
+
+⸻
+
+7) À la fin
+	•	Fournir la liste des fichiers modifiés/créés.
+	•	Joindre 2 captures/preview : avant / après.
+	•	Vérifier accessibilité minimale (labels boutons, contrastes).
+

@@ -1,0 +1,271 @@
+voici un petit pack d’icônes + une carte Blackjack prêts à coller.
+Tout est original, en SVG pur, optimisé pour Tailwind (couleurs via currentColor) et réactif (taille via width/height="1em"). Je te donne aussi une mini carte Blackjack en React (avec props) + 3 card backs simples.
+
+⸻
+
+📁 Structure suggérée
+
+src/
+  icons/
+    Gem.svg
+    Coin.svg
+    Home.svg
+    Cart.svg
+    User.svg
+    Question.svg
+    Crown.svg
+    Wheel.svg
+    Reels.svg
+    Star.svg
+  components/
+    CardBacks/
+      BackHex.svg
+      BackRings.svg
+      BackWave.svg
+    BlackjackCard.tsx
+
+
+⸻
+
+🎨 Icônes (SVG)
+
+Tu peux soit coller ces fichiers .svg, soit copier le contenu dans des composants React si tu préfères (<svg {...props} />).
+Couleur = currentColor → se contrôle avec Tailwind (text-white, text-accent-gold, etc.).
+
+1) src/icons/Gem.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M7.5 3h9L23 9l-11 12L1 9l6.5-6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M7.5 3l4.5 6m4.5-6L12 9m0 12L7 9m5 12 5-12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+</svg>
+
+2) src/icons/Coin.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="12" cy="6.5" rx="8.5" ry="3.5" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M3.5 6.5V17.5c0 1.93 3.81 3.5 8.5 3.5s8.5-1.57 8.5-3.5V6.5" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M3.5 11c0 1.93 3.81 3.5 8.5 3.5s8.5-1.57 8.5-3.5" stroke="currentColor" stroke-width="1.25" opacity=".8"/>
+</svg>
+
+3) src/icons/Home.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5.5v-6h-5V22H4a1 1 0 0 1-1-1v-10.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>
+
+4) src/icons/Cart.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="9" cy="20" r="1.6" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="18" cy="20" r="1.6" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M3 4h2l2.2 11.5h10.8l1.5-8H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+5) src/icons/User.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M20.5 21c0-4.142-3.582-7-8.5-7s-8.5 2.858-8.5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
+
+6) src/icons/Question.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 18v.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M9.2 9.6a2.8 2.8 0 1 1 5 1.6c-.7.9-1.8 1.1-2.2 2V15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.5"/>
+</svg>
+
+7) src/icons/Crown.svg
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 17l2-8 5 4 2-7 2 7 5-4 2 8H3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M3 20h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
+
+8) src/icons/Wheel.svg (Fortune Wheel)
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M12 3v9l6.36 6.36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="12" cy="12" r="2" fill="currentColor"/>
+</svg>
+
+9) src/icons/Reels.svg (Lucky Reels)
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="3" y="6" width="18" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M9 6v12M15 6v12" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="9" cy="12" r="2.2" stroke="currentColor" stroke-width="1.25"/>
+  <circle cx="15" cy="12" r="2.2" stroke="currentColor" stroke-width="1.25"/>
+</svg>
+
+10) src/icons/Star.svg (Premium)
+
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8L6.6 20l1-6-4.4-4.3 6.1-.9L12 3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+</svg>
+
+
+⸻
+
+🂡 Composants “dos de carte” (SVG originaux)
+
+src/components/CardBacks/BackHex.svg
+
+<svg viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" rx="28" fill="#111214"/>
+  <g opacity=".18" stroke="#ffffff" stroke-width="2">
+    <path d="M150 40l30 18v36l-30 18-30-18V58l30-18z"/>
+    <path d="M90 95l30 18v36l-30 18-30-18v-36l30-18z"/>
+    <path d="M210 95l30 18v36l-30 18-30-18v-36l30-18z"/>
+    <path d="M150 150l30 18v36l-30 18-30-18v-36l30-18z"/>
+  </g>
+  <rect x="10" y="10" width="280" height="400" rx="24" stroke="#22252B" stroke-width="4"/>
+</svg>
+
+src/components/CardBacks/BackRings.svg
+
+<svg viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" rx="28" fill="#111214"/>
+  <g fill="none" stroke="#fff" opacity=".14">
+    <circle cx="150" cy="210" r="110" stroke-width="2"/>
+    <circle cx="150" cy="210" r="80" stroke-width="2"/>
+    <circle cx="150" cy="210" r="50" stroke-width="2"/>
+  </g>
+  <rect x="10" y="10" width="280" height="400" rx="24" stroke="#22252B" stroke-width="4"/>
+</svg>
+
+src/components/CardBacks/BackWave.svg
+
+<svg viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" rx="28" fill="#111214"/>
+  <path d="M0 320c40-20 80-20 120 0s80 20 120 0 40-20 60 0v100H0V320z" fill="#1A1D23"/>
+  <rect x="10" y="10" width="280" height="400" rx="24" stroke="#22252B" stroke-width="4"/>
+</svg>
+
+
+⸻
+
+🂫 Composant React : Carte Blackjack (face avant)
+
+Usage : <BlackjackCard rank="K" suit="hearts" faceDown />
+Supporte rank (A,2..10,J,Q,K), suit (spades, hearts, diamonds, clubs), faceDown pour afficher un dos (tu peux remplacer par un import de Back…svg si tu préfères).
+
+src/components/BlackjackCard.tsx
+
+import React from "react";
+
+type Suit = "spades" | "hearts" | "diamonds" | "clubs";
+type Props = {
+  rank: string;               // "A","2"... "10","J","Q","K"
+  suit: Suit;
+  size?: number;              // largeur en px (ratio ~ 300x420)
+  faceDown?: boolean;
+};
+
+const suitGlyph: Record<Suit, string> = {
+  spades: "♠",
+  hearts: "♥",
+  diamonds: "♦",
+  clubs: "♣",
+};
+
+const suitColor: Record<Suit, string> = {
+  spades: "#15171C",
+  clubs: "#15171C",
+  hearts: "#F16060",
+  diamonds: "#F16060",
+};
+
+export default function BlackjackCard({ rank, suit, size = 120, faceDown }: Props) {
+  const w = size;
+  const h = Math.round(size * (420 / 300)); // ratio 300x420
+  if (faceDown) {
+    return (
+      <div
+        style={{ width: w, height: h }}
+        className="rounded-2xl shadow-[0_6px_24px_rgba(0,0,0,.25)] border border-white/10 overflow-hidden"
+      >
+        {/* dos simple type rings */}
+        <svg viewBox="0 0 300 420" width={w} height={h} xmlns="http://www.w3.org/2000/svg">
+          <rect width="300" height="420" rx="28" fill="#111214"/>
+          <g fill="none" stroke="#fff" opacity=".14">
+            <circle cx="150" cy="210" r="110" strokeWidth="2"/>
+            <circle cx="150" cy="210" r="80" strokeWidth="2"/>
+            <circle cx="150" cy="210" r="50" strokeWidth="2"/>
+          </g>
+          <rect x="10" y="10" width="280" height="400" rx="24" stroke="#22252B" strokeWidth="4"/>
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{ width: w, height: h }}
+      className="bg-white rounded-2xl shadow-[0_6px_24px_rgba(0,0,0,.25)] border border-black/5 flex items-center justify-center relative overflow-hidden"
+    >
+      {/* valeur centrale */}
+      <div
+        className="font-semibold select-none"
+        style={{
+          fontSize: Math.round(w * 0.42),
+          lineHeight: 1,
+          color: suitColor[suit],
+          letterSpacing: -1,
+        }}
+      >
+        {rank}
+      </div>
+
+      {/* glyphe en bas */}
+      <div
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 select-none"
+        style={{ color: suitColor[suit], fontSize: Math.round(w * 0.22) }}
+      >
+        {suitGlyph[suit]}
+      </div>
+
+      {/* micro-bord */}
+      <div className="absolute inset-0 rounded-2xl ring-1 ring-black/5 pointer-events-none" />
+    </div>
+  );
+}
+
+
+⸻
+
+🔧 Exemple d’utilisation
+
+import Gem from "@/icons/Gem.svg";
+import Coin from "@/icons/Coin.svg";
+import BlackjackCard from "@/components/BlackjackCard";
+
+export default function DemoRow() {
+  return (
+    <div className="p-4 space-y-6 bg-[#0B0B0F] text-white">
+      <div className="flex items-center gap-4">
+        <Gem className="w-6 h-6 text-accent-blue" />
+        <Coin className="w-6 h-6 text-accent-gold" />
+        <span className="text-sm text-white/70">Icônes pilotées par Tailwind</span>
+      </div>
+
+      <div className="flex gap-4">
+        <BlackjackCard rank="A" suit="spades" />
+        <BlackjackCard rank="10" suit="hearts" />
+        <BlackjackCard rank="K" suit="diamonds" faceDown />
+      </div>
+    </div>
+  );
+}
+
+
+⸻
+
+🧩 Conseils d’intégration UI
+	•	Donne des couleurs via Tailwind, ex. text-accent-gold (ajoute accent-gold: "#F8CA5A" dans ton tailwind.config).
+	•	Icônes dans la bottom bar : className="w-6 h-6 text-white/80 group-data-[active=true]:text-white".
+	•	Les cartes ont de très grands arrondis + ombre douce → ça reproduit l’esthétique Offsuit.
+
+Si tu veux, je peux aussi te générer un petit radar chart “style Offsuit” en SVG réactif pour la page Profile, et une roulette CSS prête à brancher (Wheel). Tu me dis !

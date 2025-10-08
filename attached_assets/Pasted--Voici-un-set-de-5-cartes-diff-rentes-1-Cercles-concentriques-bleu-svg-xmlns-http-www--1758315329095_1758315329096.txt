@@ -1,0 +1,107 @@
+
+Voici un set de 5 cartes différentes :
+
+⸻
+
+1. Cercles concentriques (bleu)
+
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <rect x="0" y="0" width="750" height="1050" rx="40" fill="#1E40AF"/>
+  <rect x="20" y="20" width="710" height="1010" rx="30" fill="none" stroke="white" stroke-width="20"/>
+  <g stroke="white" stroke-width="16" fill="none">
+    <circle cx="375" cy="525" r="240"/>
+    <circle cx="375" cy="525" r="160"/>
+    <circle cx="375" cy="525" r="80"/>
+    <circle cx="375" cy="525" r="20"/>
+  </g>
+</svg>
+
+
+⸻
+
+2. Lignes diagonales (noir)
+
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <rect x="0" y="0" width="750" height="1050" rx="40" fill="#111827"/>
+  <rect x="20" y="20" width="710" height="1010" rx="30" fill="none" stroke="white" stroke-width="20"/>
+  <g stroke="white" stroke-width="14">
+    <line x1="150" y1="0" x2="0" y2="300"/>
+    <line x1="300" y1="0" x2="0" y2="600"/>
+    <line x1="450" y1="0" x2="0" y2="900"/>
+    <line x1="600" y1="0" x2="0" y2="1050"/>
+    <line x1="750" y1="0" x2="150" y2="1050"/>
+    <line x1="750" y1="300" x2="300" y2="1050"/>
+    <line x1="750" y1="600" x2="450" y2="1050"/>
+    <line x1="750" y1="900" x2="600" y2="1050"/>
+  </g>
+</svg>
+
+
+⸻
+
+3. Soleil radial (vert)
+
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <rect x="0" y="0" width="750" height="1050" rx="40" fill="#065F46"/>
+  <rect x="20" y="20" width="710" height="1010" rx="30" fill="none" stroke="white" stroke-width="20"/>
+  <g stroke="white" stroke-width="12">
+    <circle cx="375" cy="525" r="12" fill="white"/>
+    <!-- Rayons -->
+    <line x1="375" y1="125" x2="375" y2="200"/>
+    <line x1="375" y1="925" x2="375" y2="850"/>
+    <line x1="125" y1="525" x2="200" y2="525"/>
+    <line x1="650" y1="525" x2="575" y2="525"/>
+    <line x1="200" y1="275" x2="250" y2="325"/>
+    <line x1="550" y1="725" x2="500" y2="675"/>
+    <line x1="550" y1="325" x2="500" y2="375"/>
+    <line x1="200" y1="775" x2="250" y2="725"/>
+    <!-- Anneau -->
+    <circle cx="375" cy="525" r="180"/>
+  </g>
+</svg>
+
+
+⸻
+
+4. Grille géométrique (gris clair)
+
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <rect x="0" y="0" width="750" height="1050" rx="40" fill="#374151"/>
+  <rect x="20" y="20" width="710" height="1010" rx="30" fill="none" stroke="white" stroke-width="20"/>
+  <g stroke="white" stroke-width="12" fill="none" opacity="0.9">
+    <!-- Lignes verticales -->
+    <line x1="150" y1="0" x2="150" y2="1050"/>
+    <line x1="300" y1="0" x2="300" y2="1050"/>
+    <line x1="450" y1="0" x2="450" y2="1050"/>
+    <line x1="600" y1="0" x2="600" y2="1050"/>
+    <!-- Lignes horizontales -->
+    <line x1="0" y1="210" x2="750" y2="210"/>
+    <line x1="0" y1="420" x2="750" y2="420"/>
+    <line x1="0" y1="630" x2="750" y2="630"/>
+    <line x1="0" y1="840" x2="750" y2="840"/>
+  </g>
+</svg>
+
+
+⸻
+
+5. Spirale (blanc, fond noir inversé)
+
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1050" viewBox="0 0 750 1050">
+  <rect x="0" y="0" width="750" height="1050" rx="40" fill="#000000"/>
+  <rect x="20" y="20" width="710" height="1010" rx="30" fill="none" stroke="white" stroke-width="20"/>
+  <g stroke="white" stroke-width="10" fill="none">
+    <path d="M375 525
+             m -200,0
+             a 200,200 0 1,1 400,0
+             a 200,200 0 1,1 -400,0
+             m 50,0
+             a 150,150 0 1,0 300,0
+             a 150,150 0 1,0 -300,0
+             m 50,0
+             a 100,100 0 1,1 200,0
+             a 100,100 0 1,1 -200,0"/>
+  </g>
+</svg>
+
+

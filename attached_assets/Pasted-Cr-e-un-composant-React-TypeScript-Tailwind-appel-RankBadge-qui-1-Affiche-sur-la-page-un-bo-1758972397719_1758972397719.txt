@@ -1,0 +1,183 @@
+Crée un composant React + TypeScript + Tailwind appelé RankBadge qui :
+	1.	Affiche sur la page un bouton compact avec :
+	•	l’emoji/icone du rang courant,
+	•	le nom du rang,
+	•	une barre de progression (horizontale) qui montre l’avancement dans le palier courant en fonction du nombre de chips du joueur.
+	2.	Au clic, ouvre un bottom sheet (modal qui glisse du bas et s’arrête à mi-écran) avec :
+	•	un titre “Ranks”,
+	•	une liste scrollable de tous les rangs (du plus bas au plus haut), chaque ligne montrant l’emoji, le nom du rang et la tranche de chips requise,
+	•	le rang courant highlight (bg/outline).
+
+Tech / intégration
+	•	Projet: React + TypeScript + Tailwind (pas de dépendance UI exotique nécessaire).
+	•	Crée les fichiers :
+	•	src/ranks/data.ts (définition des rangs),
+	•	src/ranks/useRank.ts (helpers: trouver rang courant + progression),
+	•	src/ranks/RankBadge.tsx (le bouton + modal),
+	•	src/ranks/RankModal.tsx (le contenu de la bottom sheet).
+	•	Ajoute RankBadge sur la page d’accueil (ou Home.tsx) en haut de l’écran.
+	•	Le nombre de chips du joueur est reçu par prop chips: number (je le brancherai ensuite sur mon state/Supabase).
+	•	Accessibilité: modal fermable par swipe-down, clic sur overlay, touche Esc, focus trap.
+
+Les rangs (ordre, noms fun, tranches, icônes)
+
+Utilise exactement ces rangs et ces tranches. Les noms doivent être visibles partout (bouton + modal).
+	1.	🐷 Oinkster — 0–999 chips
+	2.	🐄 Moo Rookie — 1,000–4,999
+	3.	🐟 Splashy — 5,000–14,999
+	4.	🦊 Trickster — 15,000–39,999
+	5.	🦅 Sky Master — 40,000–99,999
+	6.	🐯 Stripe King — 100,000–249,999
+	7.	🐪 Chip Carrier — 250,000–499,999
+	8.	🐋 High Roller — 500,000–999,999
+	9.	🦖 Table Predator — 1,000,000+
+
+IMPORTANT : affiche les emojis/ICÔNES correspondants. Mets les emojis ci-dessus par défaut ET prévois la possibilité d’utiliser des images 3D (fallback).
+	•	Implémente une interface RankIcon qui accepte soit un emoji (string), soit un imgSrc (string).
+	•	Dans data.ts, mets les emojis (🐷🐄🐟🦊🦅🐯🐪🐋🦖).
+	•	Ajoute des placeholders pour images 3D (commentées) afin que je colle plus tard mes PNG/WebP (ex: /public/ranks/boar.png, etc.).
+
+Comportement / calcul
+	•	Helper getRankForChips(chips) retourne l’objet rang courant (min, max, name, emoji/imgSrc, index).
+	•	Helper getProgressInRank(chips, rank) retourne un float 0–1 :
+	•	si rank.max est Infinity (dernier rang), la progression est toujours 1 (barre pleine).
+	•	sinon progress = (chips - rank.min) / (rank.max - rank.min), clampé entre 0 et 1.
+	•	Le bouton : layout compact (icône à gauche, name à droite, barre dessous).
+	•	La barre : Tailwind simple (bg-zinc-800, fill dégradé), coin arrondis.
+	•	La modal : moitié de la hauteur écran, arrondie en haut, overlay semi-opaque. Liste verticale des rangs ; chaque item montre :
+	•	icône (emoji ou image),
+	•	nom,
+	•	min–max (ou 1,000,000+).
+	•	l’item du rang courant a une bordure/bg mis en avant.
+
+Types & données (exemple)
+
+// src/ranks/data.ts
+export type Rank = {
+  key: string;
+  name: string;
+  min: number;
+  max: number; // Infinity pour le dernier
+  emoji?: string;   // ex: "🐷"
+  imgSrc?: string;  // optionnel si on met des PNG 3D
+};
+
+export const RANKS: Rank[] = [
+  { key: 'pig',   name: 'Oinkster',       min:    0, max:    999,   emoji: '🐷' /* imgSrc: '/public/ranks/pig.png' */ },
+  { key: 'cow',   name: 'Moo Rookie',     min: 1000, max:   4999,  emoji: '🐄' /* imgSrc: '/public/ranks/cow.png' */ },
+  { key: 'fish',  name: 'Splashy',        min: 5000, max:  14999,  emoji: '🐟' /* imgSrc: '/public/ranks/fish.png' */ },
+  { key: 'fox',   name: 'Trickster',      min:15000, max:  39999,  emoji: '🦊' /* imgSrc: '/public/ranks/fox.png' */ },
+  { key: 'eagle', name: 'Sky Master',     min:40000, max:  99999,  emoji: '🦅' /* imgSrc: '/public/ranks/eagle.png' */ },
+  { key: 'tiger', name: 'Stripe King',    min:100000, max: 249999, emoji: '🐯' /* imgSrc: '/public/ranks/tiger.png' */ },
+  { key: 'camel', name: 'Chip Carrier',   min:250000, max: 499999, emoji: '🐪' /* imgSrc: '/public/ranks/camel.png' */ },
+  { key: 'whale', name: 'High Roller',    min:500000, max: 999999, emoji: '🐋' /* imgSrc: '/public/ranks/whale.png' */ },
+  { key: 'trex',  name: 'Table Predator', min:1000000, max: Infinity, emoji: '🦖' /* imgSrc: '/public/ranks/trex.png' */ },
+];
+
+// src/ranks/useRank.ts
+import { RANKS, Rank } from './data';
+
+export function getRankForChips(chips: number): Rank {
+  for (const r of RANKS) {
+    if (chips >= r.min && chips <= (Number.isFinite(r.max) ? r.max : chips)) return r;
+  }
+  return RANKS[0];
+}
+
+export function getProgressInRank(chips: number, rank: Rank): number {
+  if (!Number.isFinite(rank.max)) return 1;
+  const span = rank.max - rank.min;
+  const v = (chips - rank.min) / Math.max(1, span);
+  return Math.max(0, Math.min(1, v));
+}
+
+// src/ranks/RankBadge.tsx
+import { useState } from 'react';
+import { RANKS } from './data';
+import { getRankForChips, getProgressInRank } from './useRank';
+import { RankModal } from './RankModal';
+
+export function RankBadge({ chips }: { chips: number }) {
+  const [open, setOpen] = useState(false);
+  const rank = getRankForChips(chips);
+  const p = getProgressInRank(chips, rank);
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-3 rounded-xl bg-zinc-900/70 px-4 py-3 shadow ring-1 ring-white/10 hover:ring-white/20"
+      >
+        <span className="text-2xl">{rank.emoji}</span>
+        <div className="min-w-40">
+          <div className="text-sm font-semibold text-white">{rank.name}</div>
+          <div className="mt-1 h-2 w-full rounded bg-zinc-800">
+            <div
+              className="h-2 rounded bg-gradient-to-r from-fuchsia-500 to-emerald-400"
+              style={{ width: `${Math.round(p * 100)}%` }}
+            />
+          </div>
+        </div>
+        <div className="ml-2 text-xs text-zinc-400">{chips.toLocaleString()} chips</div>
+      </button>
+
+      <RankModal open={open} onClose={() => setOpen(false)} chips={chips} />
+    </>
+  );
+}
+
+// src/ranks/RankModal.tsx
+import { Fragment } from 'react';
+import { RANKS, Rank } from './data';
+import { getRankForChips } from './useRank';
+
+export function RankModal({ open, onClose, chips }:{open:boolean; onClose:()=>void; chips:number}) {
+  const current = getRankForChips(chips);
+  return (
+    <div className={`${open ? 'fixed' : 'hidden'} inset-0 z-50`}>
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-x-0 bottom-0 h-1/2 rounded-t-2xl bg-zinc-950 p-4 ring-1 ring-white/10">
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-700" />
+        <h2 className="mb-4 text-center text-lg font-semibold text-white">Ranks</h2>
+        <div className="h-[calc(100%-3rem)] overflow-y-auto pr-2">
+          <ul className="space-y-2">
+            {RANKS.map(r => {
+              const isCurrent = r.key === current.key;
+              const range = Number.isFinite(r.max) ? 
+                `${r.min.toLocaleString()}–${r.max.toLocaleString()}` : `${r.min.toLocaleString()}+`;
+              return (
+                <li key={r.key}
+                    className={`flex items-center justify-between rounded-xl px-4 py-3 ring-1 ${isCurrent ? 'bg-white/5 ring-emerald-400/40' : 'ring-white/10'}`}>
+                  <div className="flex items-center gap-3">
+                    {r.imgSrc ? <img src={r.imgSrc} alt={r.name} className="h-8 w-8" /> : <span className="text-2xl">{r.emoji}</span>}
+                    <span className="text-white font-medium">{r.name}</span>
+                  </div>
+                  <span className="text-sm text-zinc-400">{range} chips</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+	•	Ajoute un exemple d’utilisation dans la page d’accueil :
+
+// src/pages/Home.tsx (ou équivalent)
+import { RankBadge } from '@/ranks/RankBadge';
+export default function Home() {
+  const chips = 58951; // TODO: remplacer par la vraie valeur (state/Supabase)
+  return (
+    <div className="p-4">
+      <RankBadge chips={chips} />
+      {/* ... le reste de la page ... */}
+    </div>
+  );
+}
+
+	•	Soigne le style pour iOS-like (coins arrondis, ombres douces).
+	•	Pas de warning TypeScript, pas d’erreurs eslint.
+
+Livrable attendu : code complet + intégration visible dans la preview.

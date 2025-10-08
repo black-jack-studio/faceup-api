@@ -1,0 +1,141 @@
+
+
+Objectif (ne PAS réécrire l’app, mise à jour additive et sûre)
+	•	Mettre à jour /home : retirer/masquer la grille de 4 cartes (Practice / Counting / Daily Spin / Shop).
+	•	Ajouter un carousel horizontal de modes façon Offsuit (grosses cartes, gradient, icône, titre + sous-titre).
+	•	Au clic, chaque carte ouvre /play/:mode et charge la même table Blackjack mais avec règles & flux différents.
+	•	Pas de suppression de fichiers critiques : refactor non destructif.
+
+⸻
+
+1) Home : UI & navigation
+	•	Supprimer du rendu la section des 4 petits carrés.
+	•	Si composant dédié (ex. QuickActionsGrid / HomeTiles), ne pas l’effacer : ne plus l’importer / passer show=false.
+	•	Ajouter src/components/ModeCard.tsx + src/components/ModesCarousel.tsx.
+	•	Conteneur mobile : overflow-x-auto snap-x snap-mandatory px-4 gap-4.
+	•	Carte : rounded-3xl, gradient doux, ombre subtile, icône SVG, micro-interactions (transition 150ms, active:scale-[.98]).
+	•	Placer le carousel juste sous les compteurs (coins/gems/xp).
+
+4 cartes à afficher (dans cet ordre)
+	1.	Classic 21 — Standard blackjack with normal bets.
+	•	Icône : carte ♠ stylisée.
+	2.	High Stakes — Play with bigger chip values.
+	•	Icône : pile de jetons.
+	3.	Tournaments — Compete in multi-round tournaments.
+	•	Icône : coupe/trophée.
+	4.	Challenges — Win streaks & daily missions.
+	•	Icône : éclair/objectif.
+
+Créer des icônes SVG originales dans src/icons/ : Cards.tsx, Stack.tsx, Trophy.tsx, Lightning.tsx.
+Couleurs cohérentes avec notre thème (noir/gris; accents vert/violet/bleu/or).
+
+⸻
+
+2) Routes & store (modes)
+	•	Router : créer les routes
+	•	/play/classic
+	•	/play/high-stakes
+	•	/play/tournaments
+	•	/play/challenges
+	•	Zustand (ou store existant) : ajouter type + config
+
+export type GameMode = "classic" | "high-stakes" | "tournaments" | "challenges";
+
+export const modeConfig: Record<GameMode, {
+  stakesMultiplier: number;   // multiplicateur des mises/gains
+  xpMultiplier: number;       // multiplicateur d’XP
+  useChips: boolean;          // tjs true (pas de mode gratuit)
+  leaderboard: boolean;       // actif pour tous sauf si précisé
+  notes?: string;
+}> = {
+  "classic":     { stakesMultiplier: 1,  xpMultiplier: 1.0, useChips: true, leaderboard: true, notes: "Standard rules." },
+  "high-stakes": { stakesMultiplier: 5,  xpMultiplier: 1.3, useChips: true, leaderboard: true, notes: "Bigger bets." },
+  "tournaments": { stakesMultiplier: 1,  xpMultiplier: 1.2, useChips: true, leaderboard: true, notes: "Multi-round." },
+  "challenges":  { stakesMultiplier: 1,  xpMultiplier: 1.1, useChips: true, leaderboard: true, notes: "Missions & streaks." },
+};
+
+// Dans le store :
+currentMode: GameMode;
+setMode(mode: GameMode): void;
+getModeConfig(): typeof modeConfig[GameMode];
+
+
+	•	ModeCard → onClick : setMode(slug) puis navigate("/play/<slug>").
+
+⸻
+
+3) Table de jeu (même UI, comportements par mode)
+
+Réutiliser le composant de table Blackjack existant pour tous les modes.
+Au montage :
+
+const mode = useStore((s)=>s.currentMode) ?? readFromRoute();
+const cfg  = useStore((s)=>s.getModeConfig());
+
+	•	Classic 21
+	•	Mises standard, règles par défaut actuelles.
+	•	Débit/Crédit des chips normal.
+	•	XP : base × 1.0.
+	•	High Stakes
+	•	Toutes les mises & gains/pertes ×5 (ou cfg.stakesMultiplier).
+	•	Vérifier solde suffisant avant de s’asseoir.
+	•	XP : base × 1.3.
+	•	Tournaments
+	•	Écran d’entrée /play/tournaments : liste des tournois dispo (au moins une Demo Cup).
+	•	Join → prélève un buy-in (chips) et crée une entrée, puis lance une série de mains (ex. 10) ; classement basé sur chips restants.
+	•	Fin de tournoi : enregistrer résultat + récompense si podium.
+	•	XP : base × 1.2.
+	•	Challenges
+	•	Écran /play/challenges listant 3 missions actives (ex. Win 3 in a row, Make a natural 21, Beat dealer with 20+).
+	•	Suivi de progression en live pendant les mains ; bouton Claim crédite gems/chips/XP.
+	•	XP : base × 1.1.
+
+Dans tous les cas : useChips: true ⇒ toujours consommer des chips (pas de mode gratuit).
+
+⸻
+
+4) Persistance & backend léger
+
+Si Supabase activé : créer/étendre tables (sinon fallback localStorage).
+	•	sessions_game(id, user_id, mode text, started_at, ended_at, stake int, buyin int, result int)
+	•	tournaments(id, name text, buyin int, created_at)
+	•	tournament_entries(id, tournament_id, user_id, chips int, created_at)
+	•	challenges_log(id, user_id, key text, progress int, target int, claimed bool, created_at)
+
+Règles : RLS par auth.uid() si possible.
+Si indisponible : stocker localement et simuler.
+
+⸻
+
+5) Economy & XP
+	•	Débit/Crédit de chips toujours actif (aucun mode gratuit).
+	•	Gains d’XP à la fin de chaque main : gagneXP(base * cfg.xpMultiplier).
+	•	High Stakes : UI des sliders/buy-ins adapte ses paliers (ex. ×5).
+	•	Tournaments : prélèvement buy-in, répartition gains à la fin, écriture mode="tournaments" en session.
+
+⸻
+
+6) Nettoyage Home
+	•	Ne plus rendre la grille de 4 cartes ; garder Weekly Leaderboard.
+	•	Carousel placé au-dessus du leaderboard ; proportions et marges comme sur les captures Offsuit (arrondis 24–28, ombres douces, gradients subtils).
+
+⸻
+
+7) Tests d’acceptation
+	1.	Home : plus de grille 4 cartes ; carousel visible, 4 cartes, scroll horizontal snap.
+	2.	Classic 21 : table standard, débit/gain normal, XP ×1.0.
+	3.	High Stakes : mise/gains ×5 ; blocage si solde insuffisant ; XP ×1.3.
+	4.	Tournaments : liste Demo Cup → Join prélève buy-in → série de mains → résultat enregistré → récompense si podium ; XP ×1.2.
+	5.	Challenges : 3 missions visibles, progression en direct, Claim crédite correctement.
+	6.	Toutes les sessions ont mode rempli ; economy et XP toujours actifs (aucun mode gratuit).
+	7.	Mobile-first, 60fps, dark mode, assets SVG (pas de bitmaps).
+
+⸻
+
+Livrables attendus
+	•	ModesCarousel.tsx, ModeCard.tsx, icônes Cards.tsx, Stack.tsx, Trophy.tsx, Lightning.tsx.
+	•	Nouvelles routes /play/classic, /play/high-stakes, /play/tournaments, /play/challenges.
+	•	Store mis à jour (currentMode, modeConfig).
+	•	Masquage de la grille 4 cartes.
+	•	Stubs fonctionnels TournamentsScreen / ChallengesScreen avec persistance (Supabase si dispo, sinon localStorage).
+

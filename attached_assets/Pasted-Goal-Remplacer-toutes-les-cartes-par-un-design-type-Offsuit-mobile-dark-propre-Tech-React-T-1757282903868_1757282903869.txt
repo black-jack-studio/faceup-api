@@ -1,0 +1,239 @@
+Goal: Remplacer toutes les cartes par un design type Offsuit (mobile, dark, propre).
+Tech: React + TypeScript + Tailwind only.
+
+Create/replace the following files.
+
+⸻
+
+1) src/icons/Suits.tsx
+
+import * as React from "react";
+
+export type Suit = "hearts" | "diamonds" | "clubs" | "spades";
+
+export const suitFill = (s: Suit) =>
+  s === "hearts" || s === "diamonds" ? "#E55C73" : "#25292F";
+
+export const Hearts = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <path fill="#E55C73" d="M12 21s-7.55-4.82-9.5-8.08C.96 10.08 2.12 6.5 5.38 6.5c2.1 0 3.17 1.12 3.87 2.17.7-1.05 1.77-2.17 3.87-2.17 3.26 0 4.42 3.58 2.88 6.42C19.55 16.18 12 21 12 21z"/>
+  </svg>
+);
+
+export const Diamonds = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <path fill="#E55C73" d="M12 2l7 10-7 10-7-10 7-10z" />
+  </svg>
+);
+
+export const Clubs = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <path fill="#25292F" d="M12 22a1 1 0 01-1-1v-2.1a5 5 0 01-2.9.9 4.9 4.9 0 01-4.1-2.3 4.9 4.9 0 018-5.3 4.9 4.9 0 11-3.9-8 4.9 4.9 0 014 2.1 4.9 4.9 0 018 5.9 4.9 4.9 0 01-4.1 2.3 5 5 0 01-2.9-.9V21a1 1 0 01-1 1z"/>
+  </svg>
+);
+
+export const Spades = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <path fill="#25292F" d="M12 2s7.5 5.3 7.5 10.2A3.8 3.8 0 0115.8 16H14a5.5 5.5 0 01.6 2.6A3.4 3.4 0 0111 22a3.4 3.4 0 01-3.6-3.4A5.5 5.5 0 018 16H6.2A3.8 3.8 0 014.5 12.2C4.5 7.3 12 2 12 2z"/>
+  </svg>
+);
+
+export const SuitIcon = ({ suit, size=18 }: { suit: Suit; size?: number }) => {
+  if (suit === "hearts") return <Hearts size={size} />;
+  if (suit === "diamonds") return <Diamonds size={size} />;
+  if (suit === "clubs") return <Clubs size={size} />;
+  return <Spades size={size} />;
+};
+
+
+⸻
+
+2) src/components/PlayingCard.tsx
+
+import * as React from "react";
+import { Suit, SuitIcon, suitFill } from "@/icons/Suits";
+
+/**
+ * Offsuit-like blackjack card:
+ * - very round corners, soft shadow
+ * - rank super large centered
+ * - suit small at the bottom
+ * - optional facedown back with concentric rings
+ */
+
+export type CardSize = "xs" | "sm" | "md" | "lg";
+const sizeMap = {
+  xs: { w: 40, h: 58, r: 12, rank: "text-[16px]", suit: 14 },
+  sm: { w: 62, h: 90, r: 18, rank: "text-[24px]", suit: 16 },
+  md: { w: 86, h: 124, r: 22, rank: "text-[34px]", suit: 18 },
+  lg: { w: 110, h: 160, r: 26, rank: "text-[44px]", suit: 22 },
+};
+
+export type PlayingCardProps = {
+  rank?: string;       // "A", "2".."10", "J", "Q", "K"
+  suit?: Suit;         // hearts | diamonds | clubs | spades
+  faceDown?: boolean;  // render back
+  size?: CardSize;
+  dimmed?: boolean;    // for inactive/hidden states
+  className?: string;
+};
+
+export default function PlayingCard({
+  rank = "A",
+  suit = "spades",
+  faceDown = false,
+  size = "md",
+  dimmed = false,
+  className = "",
+}: PlayingCardProps) {
+  const S = sizeMap[size];
+
+  return (
+    <div
+      className={[
+        "relative select-none will-change-transform",
+        "shadow-[0_6px_24px_rgba(0,0,0,0.35)]",
+        "bg-white text-[#0B0B0F]",
+        "flex items-center justify-center",
+        "transition-transform duration-150",
+        dimmed ? "opacity-55" : "opacity-100",
+        className,
+      ].join(" ")}
+      style={{
+        width: S.w,
+        height: S.h,
+        borderRadius: S.r,
+      }}
+    >
+      {/* Card face or back */}
+      {faceDown ? <CardBack radius={S.r} /> : (
+        <CardFace rank={rank} suit={suit} size={size} />
+      )}
+
+      {/* subtle inner border */}
+      <div
+        className="pointer-events-none absolute inset-0 ring-1"
+        style={{ borderRadius: S.r, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)" }}
+      />
+    </div>
+  );
+}
+
+function CardFace({ rank, suit, size }: { rank: string; suit: Suit; size: CardSize }) {
+  const S = sizeMap[size];
+  const isRed = suit === "hearts" || suit === "diamonds";
+  const rankColor = isRed ? "#E55C73" : "#0B0B0F";
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-between py-2">
+      {/* Rank big center */}
+      <div
+        className={[
+          "font-semibold leading-none tracking-tight",
+          S.rank,
+        ].join(" ")}
+        style={{ color: rankColor }}
+      >
+        {rank}
+      </div>
+
+      {/* Suit small bottom */}
+      <div className="mb-1" style={{ color: suitFill(suit) }}>
+        <SuitIcon suit={suit} size={sizeMap[size].suit} />
+      </div>
+    </div>
+  );
+}
+
+function CardBack({ radius }: { radius: number }) {
+  // Concentric rings like Offsuit (dark purple on dark)
+  return (
+    <svg className="absolute inset-0" viewBox="0 0 100 145" style={{ borderRadius: radius }}>
+      <defs>
+        <linearGradient id="back-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#2C2742" />
+          <stop offset="100%" stopColor="#1E1A2B" />
+        </linearGradient>
+        <radialGradient id="ring" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#8C86F9" stopOpacity="0.9" />
+          <stop offset="50%" stopColor="#7D76F0" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#6B64E6" stopOpacity="0.06" />
+        </radialGradient>
+      </defs>
+      <rect x="0" y="0" width="100" height="145" rx={radius} fill="url(#back-grad)" />
+      {Array.from({ length: 6 }).map((_, i) => (
+        <circle key={i} cx="50" cy="72.5" r={8 + i * 8} fill="none" stroke="url(#ring)" strokeWidth="2" />
+      ))}
+      <circle cx="50" cy="72.5" r="6" fill="#CFCBFF" opacity="0.9" />
+    </svg>
+  );
+}
+
+
+⸻
+
+3) Quick layout usage (replace where you render cards)
+
+Example for your blackjack table:
+
+import PlayingCard from "@/components/PlayingCard";
+
+// Dealer row
+<div className="flex flex-col items-center gap-3">
+  <div className="text-white/80 text-sm">Dealer</div>
+  <div className="flex gap-2">
+    <PlayingCard rank="3" suit="clubs" size="md" />
+    <PlayingCard faceDown size="md" />
+  </div>
+</div>
+
+// Player row
+<div className="flex flex-col items-center gap-3 mt-6">
+  <div className="text-white/80 text-sm">You</div>
+  <div className="flex gap-2">
+    <PlayingCard rank="2" suit="clubs" size="lg" />
+    <PlayingCard rank="Q" suit="hearts" size="lg" />
+  </div>
+</div>
+
+
+⸻
+
+4) Replace everywhere
+	•	Find usages of the old card component (or emoji images) and replace with <PlayingCard …/>.
+	•	If your game state stores cards as {rank: 'A'|'2'..'K', suit: 'hearts'|'diamonds'|'clubs'|'spades'}, you can map:
+
+{hand.map((c, i) => (
+  <PlayingCard
+    key={i}
+    rank={c.rank}
+    suit={c.suit}
+    faceDown={c.faceDown}
+    size={isPlayer ? "lg" : "md"}
+  />
+))}
+
+
+⸻
+
+5) Tailwind polish (optional)
+
+In tailwind.config.js, ensure you’re not forcing rounded-sm on everything, and keep dark background:
+
+// optional tokens
+theme: {
+  extend: {
+    colors: {
+      bg: { dark: "#0B0B0F", card: "#FFFFFF" },
+    },
+    borderRadius: { card: "26px" },
+  }
+}
+
+
+⸻
+
+✅ Résultat
+	•	Cartes identiques dans l’esprit Offsuit : très arrondies, rank énorme centré, suit discret en bas, ombres douces.
+	•	Back avec anneaux concentriques.
+	•	Vectoriel/clean, net à toutes tailles, parfait pour iOS-like dark UI.

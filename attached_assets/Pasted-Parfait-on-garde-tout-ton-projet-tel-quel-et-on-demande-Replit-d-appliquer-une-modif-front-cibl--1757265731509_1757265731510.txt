@@ -1,0 +1,176 @@
+Parfait — on garde tout ton projet tel quel et on demande à Replit d’appliquer une modif front ciblée sur la page Home :
+	•	En haut à gauche : badges gems et niveau → inchangé.
+	•	AU CENTRE : un gros compteur “coins” (pièces), carte style Offsuit (gradient doux + glow).
+	•	L’XP n’est plus une barre : on la remplace par un anneau circulaire (progress ring) montrant le total d’XP actuel et le remplissage jusqu’au prochain niveau.
+	•	Le reste de la page (carte “Play Blackjack”, leaderboard, bottom bar) reste identique.
+
+Voici le prompt “chirurgical” à coller dans Replit (Build/Agent) pour qu’il ne reconstruise pas tout et ne touche qu’à l’UI Home :
+
+⸻
+
+🧩 Prompt ciblé (modifier la page Home uniquement)
+
+Objectif (UI-only)
+Sur la page Home, remplacer la barre d’XP par un anneau circulaire (style Offsuit) et afficher les pièces (coins) au centre dans une grande carte avec glow. Ne pas toucher au back, au state global ni aux autres pages.
+
+Contraintes visuelles
+	•	Palette et style Offsuit (dark iOS-like) déjà en place : #0B0B0F / #13151A, accents vert pâle.
+	•	Coins au centre : grande carte avec gradient subtil + ombre interne, typographie forte.
+	•	XP : “progress ring” 96–128px, anneau gris très sombre + anneau actif vert pâle, valeur au centre (“Total XP”).
+	•	Micro-anim au survol / press (scale 0.98 / 150ms).
+	•	Mobile-first (375–430px).
+
+Changement minimal de code
+	1.	Créer deux composants sans casser l’existant :
+
+	•	src/components/CoinsHero.tsx
+	•	src/components/XPRing.tsx
+
+	2.	Mettre à jour UNIQUEMENT la route Home (src/app/home/index.tsx ou équivalent) pour :
+
+	•	Supprimer l’ancienne barre d’XP si présente.
+	•	Insérer <CoinsHero /> en section principale au-dessus de “Cash Games”.
+	•	Insérer <XPRing /> en dessous du compteur coins (alignement Offsuit : coins très visibles, XP en anneau).
+
+	3.	Les composants lisent l’état existant (Zustand/Supabase) :
+
+	•	chips (coins) et gems depuis le store.
+	•	xp et nextLevelXp (ou calcul levelXpTarget(xp)) depuis le store/utilitaire.
+
+Code à créer
+
+src/components/CoinsHero.tsx
+
+import React from 'react';
+import { useStore } from '@/state/store'; // <- adapter si nom différent
+
+// Icône coin minimaliste en SVG (asset original)
+const CoinIcon = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none">
+    <defs>
+      <radialGradient id="coinGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stopColor="#F8CA5A" />
+        <stop offset="60%" stopColor="#E5AE3F" />
+        <stop offset="100%" stopColor="#C98E1F" />
+      </radialGradient>
+    </defs>
+    <circle cx="12" cy="12" r="9" fill="url(#coinGrad)" />
+    <circle cx="12" cy="12" r="9" stroke="#5a4314" strokeOpacity={0.35} />
+  </svg>
+);
+
+export default function CoinsHero() {
+  // valeurs depuis le store, avec fallback pour dev
+  const coins = useStore?.((s:any) => s.resources?.coins) ?? 1000;
+
+  return (
+    <section
+      aria-label="Coins summary"
+      className="mx-auto mt-6 w-[92%] rounded-3xl bg-gradient-to-b from-[#121318] to-[#0E0F13] 
+                 shadow-[0_0_60px_rgba(60,255,170,0.08)] ring-1 ring-white/5 p-5 text-center
+                 transition-transform duration-150 active:scale-[0.985]"
+    >
+      <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10">
+        <CoinIcon />
+        <span className="text-white/80 text-sm">Coins</span>
+      </div>
+
+      <div className="mt-3 text-[64px] leading-none font-semibold tracking-tight text-[#B5F3C7]">
+        {coins.toLocaleString()}
+      </div>
+
+      <p className="mt-1 text-white/50 text-sm">Total coins</p>
+    </section>
+  );
+}
+
+src/components/XPRing.tsx
+
+import React, { useMemo } from 'react';
+import { useStore } from '@/state/store'; // adapter si besoin
+
+type Props = { size?: number; stroke?: number };
+export default function XPRing({ size = 120, stroke = 10 }: Props) {
+  const xp = useStore?.((s:any) => s.progress?.xp) ?? 0;
+  // cible prochain niveau (ex: palier 1000 XP par niveau) -> adapter si vous avez une util
+  const target = useStore?.((s:any) => s.progress?.nextLevelXp) ?? 1000;
+
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const ratio = Math.max(0, Math.min(1, xp / target));
+  const dash = useMemo(() => `${circ * ratio} ${circ}`, [circ, ratio]);
+
+  return (
+    <div className="mt-6 flex items-center justify-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="rgba(255,255,255,0.08)"
+            strokeWidth={stroke}
+            fill="none"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#B5F3C7"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={dash}
+            fill="none"
+            className="transition-[stroke-dasharray] duration-300 ease-out drop-shadow-[0_0_10px_rgba(181,243,199,0.35)]"
+          />
+        </svg>
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="text-center">
+            <div className="text-2xl font-semibold text-white">{xp.toLocaleString()}</div>
+            <div className="text-[11px] uppercase tracking-wide text-white/50">Total XP</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Mise à jour Home
+Dans src/app/home/index.tsx (ou fichier équivalent de la page Home) :
+	1.	Supprimer/commenter l’ancienne barre d’XP.
+	2.	Importer et placer les nouveaux composants :
+
+import CoinsHero from '@/components/CoinsHero';
+import XPRing from '@/components/XPRing';
+
+export default function Home() {
+  return (
+    <main className="pb-28">
+      {/* Header (badges gems / niveau) : NE PAS TOUCHER */}
+
+      {/* --- NOUVEAU : coins au centre --- */}
+      <CoinsHero />
+
+      {/* --- NOUVEAU : XP en anneau --- */}
+      <XPRing />
+
+      {/* Carte “Play Blackjack” et le reste : inchangés */}
+      {/* ... */}
+    </main>
+  );
+}
+
+À ne pas faire
+	•	Ne pas modifier Supabase, Stripe, routes, ni state global (hors lecture).
+	•	Ne pas renommer les dossiers ni la nav.
+	•	Ne pas supprimer les composants existants (juste enlever la barre d’XP si elle apparaît encore).
+
+Vérifications (acceptance)
+	•	Les coins sont bien au centre, gros chiffre, carte sombre avec glow.
+	•	L’anneau XP remplit correctement selon xp/nextLevelXp.
+	•	Aucune régression sur “Play Blackjack”, leaderboard, bottom bar.
+	•	60fps (les transitions sont légères, pas de janky).
+
+⸻
+
+Si tu préfères, je peux aussi te donner une version “patch” (diff) pour ton fichier Home actuel si tu me colles son contenu.
