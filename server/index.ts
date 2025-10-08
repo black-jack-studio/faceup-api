@@ -88,11 +88,18 @@ async function withRetries<T>(fn: () => Promise<T>, label: string, tries = 3) {
   throw new Error(`${label} exhausted retries`);
 }
 
-// --- Tâches de démarrage (après listen) ---
 async function runStartupTasks() {
   try {
-    await withRetries(() => runReferralMigration(), "Referral migration");
+    // ⚠️ On ne lance la migration "referral" que si explicitement activée
+    if (process.env.ENABLE_REFERRAL_MIGRATION === 'true') {
+      await withRetries(() => runReferralMigration(), "Referral migration");
+    } else {
+      log("↩️ Skipping referral migration (ENABLE_REFERRAL_MIGRATION not true)");
+    }
+
+    // Génération des codes (ok en prod)
     await withRetries(() => generateReferralCodesForExistingUsers(), "Generate referral codes");
+
     ready = true;
     lastStartupError = null;
     log("✅ Startup tasks complete. App is READY.");
