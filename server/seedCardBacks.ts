@@ -149,16 +149,3 @@ export async function seedCardBacks(): Promise<void> {
     throw error;
   }
 }
-
-// Auto-run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  seedCardBacks()
-    .then(() => {
-      console.log('✅ Seeding complete');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('❌ Seeding failed:', error);
-      process.exit(1);
-    });
-}
