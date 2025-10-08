@@ -118,3 +118,7 @@ app.listen(port, "0.0.0.0", () => {
   log(`🚀 Server ready – serving on port ${port}`);
   log("🎯 Card backs initialized – mystery pack purchases are safe");
 });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
