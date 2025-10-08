@@ -13,17 +13,6 @@ function log(message: string, source = "express") {
   console.log(`${t} [${source}] ${message}`);
 }
 
-function serveStatic(app: express.Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
-  if (!fs.existsSync(distPath)) {
-    throw new Error(`Could not find the build directory: ${distPath}. Build the client first (npm run build).`);
-  }
-  app.use(express.static(distPath));
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
-}
-
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -108,7 +97,20 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   throw err;
 });
 
-// Servez les fichiers statiques du client
+function serveStatic(app: express.Express) {
+  const distPath = path.resolve(import.meta.dirname, "public");
+
+  if (!fs.existsSync(distPath)) {
+    log(`⚠️ Static folder not found at ${distPath} — skipping static hosting`);
+    return;
+  }
+
+  app.use(express.static(distPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
 serveStatic(app);
 
 // Port d'écoute Render/Heroku (fallback 5000)
