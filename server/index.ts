@@ -6,7 +6,7 @@ import { runReferralMigration } from "./referral-migration";
 import { generateReferralCodesForExistingUsers } from "./utils/generate-referral-codes";
 import fs from "fs";
 import path from "path";
-import { pool } from "./db"; // pour le ping DB
+import { pingDB } from "./db"; 
 
 function log(message: string, source = "express") {
   const t = new Date().toLocaleTimeString("en-US", {
@@ -109,7 +109,7 @@ async function runStartupTasks() {
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 3000);
-    await pool.query("select 1;"); // rapide
+    await pingDB(); // ⬅️ abstraction safe pg/postgres
     clearTimeout(to);
     log("🟢 DB ping ok");
   } catch (e: any) {
