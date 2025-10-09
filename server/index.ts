@@ -1,4 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors, { type CorsOptions } from "cors";
+import cookieParser from "cookie-parser";
+import csrf from "csurf";
 import { registerRoutes } from "./routes";
 import { seedCardBacks /*, addSingleCardBack */ } from "./seedCardBacks";
 import { storage } from "./storage";
@@ -19,8 +22,74 @@ function log(message: string, source = "express") {
 }
 
 const app = express();
+app.set("trust proxy", 1);
+log("✅ trust proxy enabled for secure cookies");
+
+const allowedOrigins = [
+  "capacitor://localhost",
+  "http://localhost",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+  "https://faceup.app",
+  "https://faceup-api.onrender.com",
+];
+
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
+};
+
+log(`🌐 CORS origins: ${allowedOrigins.join(", ")}`);
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
+app.use(cookieParser());
+
+const csrfProtection = csrf({
+  cookie: {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+  },
+});
+
+app.get("/api/auth/csrf", csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+const csrfExcludedPaths = new Set([
+  "/api/auth/csrf",
+  "/api/stripe-webhook",
+  "/api/stripe/webhook",
+]);
+const csrfExcludedPrefixes = ["/health", "/ready", "/auth/callback"];
+
+app.use((req, res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) {
+    return next();
+  }
+
+  const fullPath = `${req.baseUrl || ""}${req.path || ""}`;
+
+  if (csrfExcludedPaths.has(fullPath) || csrfExcludedPrefixes.some(prefix => fullPath.startsWith(prefix))) {
+    return next();
+  }
+
+  return csrfProtection(req, res, next);
+});
 
 // --- Statut de readiness ---
 let ready = false;
