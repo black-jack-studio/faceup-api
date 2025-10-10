@@ -855,7 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.cleanupExpiredBetDrafts();
 
       // Start atomic transaction for commit operation
-      const result = await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx : any) => {
         // Re-fetch and validate bet draft within transaction
         const [betDraft] = await tx.select().from(betDrafts).where(eq(betDrafts.betId, betId));
         
@@ -2727,7 +2727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // ATOMIC TRANSACTION: Update user with referrer info and increment referrer's count
-      await db.transaction(async (tx) => {
+      await db.transaction(async (tx : any) => {
         // Update user with referred_by only if:
         // 1. referred_by is still NULL (prevents double referral)
         // 2. created_at is within 48 hours (prevents expired window)
