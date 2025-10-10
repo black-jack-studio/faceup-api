@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertGameStatsSchema, insertInventorySchema, insertDailySpinSchema, insertBattlePassRewardSchema, dailySpins, claimBattlePassTierSchema, selectCardBackSchema, insertBetDraftSchema, betPrepareSchema, betCommitSchema, users, betDrafts, submitReferralCodeSchema } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { EconomyManager } from "../client/src/lib/economy";
@@ -11,7 +10,6 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import Stripe from "stripe";
-import { randomBytes, createHash } from "crypto";
 import { validateReferralCode, canEnterReferralCode } from "./utils/referral";
 import { checkAndDistributeReferralRewards } from "./utils/referral-rewards";
 import {
@@ -88,49 +86,6 @@ async function applySpinReward(userId: string, reward: any, includeInventoryItem
   }
 }
 
-// 🔒 PRODUCTION-GRADE CSRF Protection Implementation
-const generateCSRFToken = (): string => {
-  return randomBytes(32).toString('hex');
-};
-
-const validateCSRFToken = (sessionToken: string, requestToken: string): boolean => {
-  if (!sessionToken || !requestToken) return false;
-  
-  // Use constant-time comparison to prevent timing attacks
-  if (sessionToken.length !== requestToken.length) return false;
-  
-  let result = 0;
-  for (let i = 0; i < sessionToken.length; i++) {
-    result |= sessionToken.charCodeAt(i) ^ requestToken.charCodeAt(i);
-  }
-  return result === 0;
-};
-
-// 🔒 CSRF Middleware for Critical Operations
-const requireCSRF = (req: any, res: any, next: any) => {
-  // Skip CSRF for GET/HEAD requests
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    return next();
-  }
-  
-  const sessionToken = req.session?.csrfToken;
-  const requestToken = req.headers['x-csrf-token'] || req.body._csrf;
-  
-  // Debug logging for CSRF validation
-  console.log(`🔍 CSRF Debug - Method: ${req.method}, URL: ${req.url}`);
-  console.log(`🔍 Session Token: ${sessionToken ? sessionToken.substring(0, 8) + '...' : 'MISSING'}`);
-  console.log(`🔍 Request Token: ${requestToken ? requestToken.substring(0, 8) + '...' : 'MISSING'}`);
-  
-  if (!validateCSRFToken(sessionToken, requestToken)) {
-    console.warn(`🚨 CSRF ATTACK BLOCKED: IP=${req.ip}, User=${req.session?.userId || 'anonymous'}`);
-    console.warn(`🚨 Token mismatch - Session: ${sessionToken || 'NONE'}, Request: ${requestToken || 'NONE'}`);
-    return res.status(403).json({ message: "CSRF token validation failed" });
-  }
-  
-  console.log(`✅ CSRF validation passed for ${req.method} ${req.url}`);
-  next();
-};
-
 export async function registerRoutes(app: Express): Promise<Server> {
   // 🔒 SECURE Session configuration with enhanced CSRF protection
   app.use(session({
@@ -141,47 +96,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production', // 🔒 HTTPS only in production
+      secure: process.env.NODE_ENV === 'production', // HTTPS en prod
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'strict' // 🔒 Primary CSRF protection - strict same-site policy
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'none'                                // << indispensable pour Capacitor
     }
   }));
-
-  // 🔒 CRITICAL FIX: CSRF Token endpoint MUST be defined FIRST before any other routes
-  // This ensures Express handles it before Vite can intercept it
-  app.get("/api/csrf-token", (req, res) => {
-    // 🔒 CRITICAL FIX: Ensure session exists even for anonymous users
-    if (!req.session) {
-      console.error("❌ Session not initialized for CSRF token request");
-      return res.status(500).json({ message: "Session not initialized" });
-    }
-    
-    // 🔒 SECURITY FIX: Use ONE token per session - avoid rotation
-    let csrfToken = (req.session as any).csrfToken;
-    
-    if (!csrfToken) {
-      // Generate new token ONLY if session doesn't have one
-      csrfToken = generateCSRFToken();
-      (req.session as any).csrfToken = csrfToken;
-      console.log(`🆕 Generated NEW CSRF token for session: ${csrfToken.substring(0, 8)}...`);
-      
-      // Force session save for new token
-      req.session.save((err: any) => {
-        if (err) {
-          console.error("❌ Failed to save session for new CSRF token:", err);
-          return res.status(500).json({ message: "Session save failed" });
-        }
-        
-        console.log(`✅ New CSRF token saved to session`);
-        res.json({ csrfToken });
-      });
-    } else {
-      // Return existing token from session - NO ROTATION
-      console.log(`♻️  Reusing existing CSRF token: ${csrfToken.substring(0, 8)}...`);
-      res.json({ csrfToken });
-    }
-  });
 
   // Authentication middleware
   const requireAuth = (req: any, res: any, next: any) => {
@@ -263,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie('connect.sid');
+      res.clearCookie('connect.sid', { sameSite: 'none', secure: process.env.NODE_ENV === 'production' });
       res.json({ message: "Logged out successfully" });
     });
   });
@@ -724,7 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Gem shop purchases (buy coins/tickets with gems)
-  app.post("/api/shop/gem-purchase", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/shop/gem-purchase", requireAuth, async (req, res) => {
     try {
       // Validate request body with strict schema
       const validOfferIds = ['coins-5k', 'coins-15k', 'tickets-3', 'tickets-10'] as const;
@@ -1277,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Premium wheel spin with gems
-  app.post("/api/wheel-of-fortune/premium-spin", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/wheel-of-fortune/premium-spin", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUser((req.session as any).userId);
       if (!user) {
@@ -1367,7 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Route to claim challenge rewards
-  app.post("/api/challenges/:challengeId/claim", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/challenges/:challengeId/claim", requireAuth, async (req, res) => {
     try {
       const userId = (req.session as any).userId;
       const challengeId = req.params.challengeId;
@@ -2577,7 +2497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/friends/request", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/friends/request", requireAuth, async (req, res) => {
     try {
       const requesterId = (req.session as any).userId;
       const { recipientId } = req.body;
@@ -2601,7 +2521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/friends/accept", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/friends/accept", requireAuth, async (req, res) => {
     try {
       const recipientId = (req.session as any).userId;
       const { requesterId } = req.body;
@@ -2621,7 +2541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/friends/reject", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/friends/reject", requireAuth, async (req, res) => {
     try {
       const recipientId = (req.session as any).userId;
       const { requesterId } = req.body;
@@ -2638,7 +2558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/friends/remove", requireAuth, requireCSRF, async (req, res) => {
+  app.delete("/api/friends/remove", requireAuth, async (req, res) => {
     try {
       const userId = (req.session as any).userId;
       const { friendId } = req.body;
@@ -2695,7 +2615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Referral endpoints
-  app.post("/api/referral/submit-code", requireAuth, requireCSRF, async (req, res) => {
+  app.post("/api/referral/submit-code", requireAuth, async (req, res) => {
     try {
       const userId = (req.session as any).userId;
       

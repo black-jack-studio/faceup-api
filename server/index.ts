@@ -7,6 +7,7 @@ import { generateReferralCodesForExistingUsers } from "./utils/generate-referral
 import fs from "fs";
 import path from "path";
 import { pingDB } from "./db"; 
+import cors, { type CorsOptions } from "cors";
 
 function log(message: string, source = "express") {
   const t = new Date().toLocaleTimeString("en-US", {
@@ -19,8 +20,36 @@ function log(message: string, source = "express") {
 }
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// --- CORS pour Capacitor (mobile only)
+const allowedOrigins = [
+  "capacitor://localhost",
+  "http://localhost",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+  "https://faceup-api.onrender.com",
+  "https://faceup.app",
+];
+
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // --- Statut de readiness ---
 let ready = false;
@@ -55,6 +84,12 @@ app.use((req, res, next) => {
 // --- Endpoints santé ---
 app.get("/health", (_req, res) => res.status(200).send("ok"));
 app.get("/ready", (_req, res) => res.json({ ready, lastStartupError }));
+
+// --- CSRF neutralisé (mobile only)
+app.get("/api/auth/csrf", (_req, res) => {
+  // On renvoie null pour que l'ancien client ne plante plus.
+  res.json({ csrfToken: null });
+});
 
 // --- Static files (client dans dist/public à l'exécution) ---
 function serveStatic(app: express.Express) {

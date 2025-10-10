@@ -1,88 +1,46 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { Capacitor } from "@capacitor/core";
 
+/** Base API: natif => Render, web => relatif */
+const API_BASE = Capacitor.isNativePlatform()
+  ? "https://faceup-api.onrender.com"
+  : "";
+
+/** Normalisation des erreurs fetch */
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     try {
-      // Try to parse JSON error response first
       const errorData = await res.json();
       const error = new Error(errorData.message || res.statusText);
-      // Preserve additional error properties like errorType
       Object.assign(error, errorData);
       throw error;
-    } catch (parseError) {
-      // If JSON parsing fails, create a generic error with status
+    } catch {
       throw new Error(`${res.status}: ${res.statusText}`);
     }
   }
 }
 
-// 🔒 CSRF Token Cache for secure requests
-let csrfTokenCache: { token: string | null; expires: number } = { token: null, expires: 0 };
-
-// 🔒 Fetch CSRF token from server with caching
-export async function fetchCSRFToken(): Promise<string> {
-  const now = Date.now();
-  
-  // Return cached token if still valid (5 min cache)
-  if (csrfTokenCache.token && now < csrfTokenCache.expires) {
-    return csrfTokenCache.token;
-  }
-  
-  console.log("🔒 Fetching fresh CSRF token...");
-  const response = await fetch('/api/csrf-token', { credentials: 'include' });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch CSRF token: ${response.status}`);
-  }
-  
-  const { csrfToken } = await response.json();
-  
-  // Cache token for 5 minutes
-  csrfTokenCache = {
-    token: csrfToken,
-    expires: now + 5 * 60 * 1000
-  };
-  
-  console.log("✅ CSRF token cached successfully");
-  return csrfToken;
-}
-
-// 🔒 Invalidate CSRF token cache (e.g., after login/register/logout)
+/** (Compat) plus de CSRF en mobile, on garde le symbole pour éviter les imports cassés */
 export function invalidateCSRFToken() {
-  csrfTokenCache = { token: null, expires: 0 };
-  console.log("🔄 CSRF token cache invalidated");
+  /* no-op */
 }
 
+/** Appel API générique (cookies + base URL) */
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
-  options?: { skipCSRF?: boolean }
+  data?: unknown,
+  _options?: { skipCSRF?: boolean } // ignoré : pas de CSRF en mobile
 ): Promise<Response> {
+  const fullUrl = `${API_BASE}${url}`;
   const headers: Record<string, string> = {};
-  
-  // Add Content-Type for requests with body
-  if (data) {
-    headers["Content-Type"] = "application/json";
-  }
-  
-  // 🔒 SECURITY: Add CSRF token for POST/PUT/DELETE requests
-  if (!options?.skipCSRF && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())) {
-    try {
-      const csrfToken = await fetchCSRFToken();
-      headers["X-CSRF-Token"] = csrfToken;
-      console.log(`🔒 Added CSRF token to ${method} ${url}`);
-    } catch (error) {
-      console.error("❌ Failed to get CSRF token:", error);
-      throw new Error("Unable to secure request - please refresh the page");
-    }
-  }
-  
-  const res = await fetch(url, {
+  if (data !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(fullUrl, {
     method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    headers,
+    body: data !== undefined ? JSON.stringify(data) : undefined,
   });
 
   await throwIfResNotOk(res);
@@ -90,36 +48,34 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    // Use only the first segment as URL, ignore additional segments used for cache isolation
-    const [url] = queryKey as [string, ...unknown[]];
-    const res = await fetch(url as string, {
-      credentials: "include",
-    });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+/** ✅ Version fonction générique (pas d’erreur “Cannot find name 'T'”) */
+export function getQueryFn<T>(options: {
+  on401: UnauthorizedBehavior;
+}): QueryFunction<T> {
+  return async ({ queryKey }) => {
+    const [url] = queryKey as [string, ...unknown[]];
+    const res = await fetch(`${API_BASE}${url}`, { credentials: "include" });
+
+    if (options.on401 === "returnNull" && res.status === 401) {
+      return null as unknown as T;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    return (await res.json()) as T;
   };
+}
 
+/** React Query Client */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       retry: false,
     },
-    mutations: {
-      retry: false,
-    },
+    mutations: { retry: false },
   },
 });
