@@ -9,6 +9,7 @@ export interface CardBack {
   height: number;
   bytes: number;
   sha256: string;
+  description?: string;
 }
 
 export interface UserCardBack {
@@ -164,13 +165,23 @@ export const getDefaultCardBack = (): CardBack => {
 };
 
 export const getRarityColor = (rarity: CardBack['rarity']): string => {
-  const colors = {
-    'COMMON': '#9CA3AF',    // gray-400
-    'RARE': '#3B82F6',      // blue-500  
-    'SUPER_RARE': '#8B5CF6', // violet-500
-    'LEGENDARY': '#F59E0B'   // amber-500
+  const colors: Record<CardBack['rarity'], string> = {
+    COMMON: 'text-zinc-300',
+    RARE: 'text-blue-300',
+    SUPER_RARE: 'text-violet-300',
+    LEGENDARY: 'text-amber-300',
   };
-  return colors[rarity] || colors.COMMON;
+  return colors[rarity] ?? colors.COMMON;
+};
+
+export const getRarityBackground = (rarity: CardBack['rarity']): string => {
+  const backgrounds: Record<CardBack['rarity'], string> = {
+    COMMON: 'bg-white/10',
+    RARE: 'bg-blue-500/10',
+    SUPER_RARE: 'bg-violet-500/10',
+    LEGENDARY: 'bg-amber-500/10',
+  };
+  return backgrounds[rarity] ?? backgrounds.COMMON;
 };
 
 export const getRarityDisplayName = (rarity: CardBack['rarity']): string => {

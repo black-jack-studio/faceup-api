@@ -1,12 +1,70 @@
-import { users, gameStats, inventory, dailySpins, achievements, challenges, userChallenges, gemTransactions, gemPurchases, seasons, battlePassRewards, streakLeaderboard, cardBacks, userCardBacks, betDrafts, allInRuns, config, friendships, rankRewardsClaimed, type User, type InsertUser, type GameStats, type InsertGameStats, type Inventory, type InsertInventory, type DailySpin, type InsertDailySpin, type Achievement, type InsertAchievement, type Challenge, type UserChallenge, type InsertChallenge, type InsertUserChallenge, type GemTransaction, type InsertGemTransaction, type GemPurchase, type InsertGemPurchase, type Season, type InsertSeason, type BattlePassReward, type InsertBattlePassReward, type StreakLeaderboard, type InsertStreakLeaderboard, type CardBack, type InsertCardBack, type UserCardBack, type InsertUserCardBack, type BetDraft, type InsertBetDraft, type AllInRun, type InsertAllInRun, type Config, type InsertConfig, type Friendship, type InsertFriendship, type RankRewardClaimed, type InsertRankRewardClaimed } from "@shared/schema";
-import { ServerBlackjackEngine } from "./BlackjackEngine";
+import {
+  users,
+  gameStats,
+  inventory,
+  dailySpins,
+  achievements,
+  challenges,
+  userChallenges,
+  gemTransactions,
+  gemPurchases,
+  seasons,
+  battlePassRewards,
+  streakLeaderboard,
+  cardBacks,
+  userCardBacks,
+  betDrafts,
+  allInRuns,
+  config,
+  friendships,
+  rankRewardsClaimed,
+  type User,
+  type InsertUser,
+  type GameStats,
+  type InsertGameStats,
+  type Inventory,
+  type InsertInventory,
+  type DailySpin,
+  type InsertDailySpin,
+  type Achievement,
+  type InsertAchievement,
+  type Challenge,
+  type UserChallenge,
+  type InsertChallenge,
+  type InsertUserChallenge,
+  type GemTransaction,
+  type InsertGemTransaction,
+  type GemPurchase,
+  type InsertGemPurchase,
+  type Season,
+  type InsertSeason,
+  type BattlePassReward,
+  type InsertBattlePassReward,
+  type StreakLeaderboard,
+  type InsertStreakLeaderboard,
+  type CardBack,
+  type InsertCardBack,
+  type UserCardBack,
+  type InsertUserCardBack,
+  type BetDraft,
+  type InsertBetDraft,
+  type AllInRun,
+  type InsertAllInRun,
+  type Config,
+  type InsertConfig,
+  type Friendship,
+  type InsertFriendship,
+  type RankRewardClaimed,
+  type InsertRankRewardClaimed,
+} from "../db/schema";
+import { ServerBlackjackEngine, type Card as BlackjackCard } from "../BlackjackEngine";
 import { createHash } from "crypto";
-import { db } from "./db";
+import { db } from "../db";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { generateUniqueReferralCode } from "./utils/referral";
+import { generateUniqueReferralCode } from "../utils/referral";
 
 
 // JSON Card Back interface from the generated file
@@ -38,6 +96,51 @@ export interface AllInGameResult {
   finalBalance: number;
 }
 
+type LeaderboardUser = Pick<User, "id" | "username" | "selectedAvatarId" | "membershipType">;
+type LeaderboardEntry = StreakLeaderboard & { user: LeaderboardUser };
+
+type SearchResultUser = LeaderboardUser & Pick<User, "level">;
+type StreakTopUser = LeaderboardUser & {
+  maxStreak21: number | null;
+  totalStreakWins: number | null;
+  totalStreakEarnings: number | null;
+};
+
+type UserCardBackRow = Pick<UserCardBack, 'id' | 'userId' | 'cardBackId' | 'source' | 'acquiredAt'> & {
+  cardBack: Pick<CardBack, 'id' | 'name' | 'rarity' | 'priceGems' | 'imageUrl' | 'isActive' | 'createdAt'>;
+};
+
+const getErrorCode = (error: unknown): string | undefined =>
+  typeof error === 'object' && error !== null && 'code' in error ? String((error as { code?: string }).code) : undefined;
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+export type UserStatsSummary = {
+  handsPlayed: number;
+  handsWon: number;
+  handsLost: number;
+  handsPushed: number;
+  totalWinnings: number;
+  totalLosses: number;
+  blackjacks: number;
+  busts: number;
+  correctDecisions: number;
+  totalDecisions: number;
+};
+
+type PublicFriend = Pick<
+  User,
+  | "id"
+  | "username"
+  | "selectedAvatarId"
+  | "level"
+  | "coins"
+  | "xp"
+  | "membershipType"
+  | "createdAt"
+>;
+
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
@@ -63,9 +166,9 @@ export interface IStorage {
   resetStreak21(userId: string): Promise<{ user: User; streakReset: boolean }>;
   
   // Streak Leaderboard methods
-  getWeeklyStreakLeaderboard(limit?: number): Promise<(StreakLeaderboard & { user: User })[]>;
-  getPremiumWeeklyStreakLeaderboard(limit?: number): Promise<(StreakLeaderboard & { user: User })[]>;
-  getTop50StreakLeaderboard(): Promise<(StreakLeaderboard & { user: User })[]>;
+  getWeeklyStreakLeaderboard(limit?: number): Promise<LeaderboardEntry[]>;
+  getPremiumWeeklyStreakLeaderboard(limit?: number): Promise<LeaderboardEntry[]>;
+  getTop50StreakLeaderboard(): Promise<LeaderboardEntry[]>;
   updateWeeklyStreakEntry(userId: string, bestStreak: number, weekStartDate: Date, totalGames: number, totalEarnings: number): Promise<StreakLeaderboard>;
   calculateWeeklyRanks(): Promise<void>;
   getCurrentWeekStart(): Date;
@@ -78,7 +181,7 @@ export interface IStorage {
   
   // Game stats methods
   createGameStats(stats: InsertGameStats): Promise<GameStats>;
-  getUserStats(userId: string): Promise<any>;
+  getUserStats(userId: string): Promise<UserStatsSummary>;
   
   // Daily spin methods
   canUserSpin(userId: string): Promise<boolean>;
@@ -88,7 +191,7 @@ export interface IStorage {
   getLastSpinAt(userId: string): Promise<Date | null>;
   canUserSpin24h(userId: string): Promise<boolean>;
   getSpinStatus(userId: string): Promise<{ canSpin: boolean; nextAt?: Date; secondsLeft?: number }>;
-  createSpin(userId: string, reward: any): Promise<DailySpin>;
+  createSpin(userId: string, reward: InsertDailySpin["reward"]): Promise<DailySpin>;
   
   // Inventory methods
   createInventory(item: InsertInventory): Promise<Inventory>;
@@ -162,25 +265,25 @@ export interface IStorage {
   getUserTickets(userId: string): Promise<number>;
   updateUserTickets(userId: string, newCount: number): Promise<void>;
   createAllInRun(run: InsertAllInRun): Promise<AllInRun>;
-  
-  
+
+
   // DEPRECATED - Will be removed after migration
   executeAllInGame(userId: string, gameResult: "win" | "lose" | "push", isBlackjack?: boolean): Promise<AllInGameResult>;
-  executeAllInGameSecure(userId: string, playerHand: any[], dealerHand: any[], gameHash?: string): Promise<AllInGameResult>;
-  generateGameHash(userId: string, playerHand: any[], dealerHand: any[], timestamp?: number): string;
+  executeAllInGameSecure(userId: string, playerHand: BlackjackCard[], dealerHand: BlackjackCard[], gameHash?: string): Promise<AllInGameResult>;
+  generateGameHash(userId: string, playerHand: BlackjackCard[], dealerHand: BlackjackCard[], timestamp?: number): string;
 
   // Config methods
-  getConfig(key: string): Promise<any>;
-  setConfig(key: string, value: any): Promise<void>;
+  getConfig(key: string): Promise<unknown>;
+  setConfig(key: string, value: unknown): Promise<void>;
 
   // Friends methods
-  searchUsersByUsername(query: string, excludeUserId?: string): Promise<User[]>;
+  searchUsersByUsername(query: string, excludeUserId?: string): Promise<(SearchResultUser & { friendshipStatus: string | null })[]>;
   sendFriendRequest(requesterId: string, recipientId: string): Promise<Friendship>;
   acceptFriendRequest(requesterId: string, recipientId: string): Promise<Friendship>;
   rejectFriendRequest(requesterId: string, recipientId: string): Promise<void>;
   removeFriend(userId: string, friendId: string): Promise<void>;
-  getUserFriends(userId: string): Promise<(User & { friendshipId: string })[]>;
-  getFriendRequests(userId: string): Promise<(Friendship & { requester: User })[]>;
+  getUserFriends(userId: string): Promise<(PublicFriend & { friendshipId: string; totalGamesPlayed: number; winRate: number })[]>;
+  getFriendRequests(userId: string): Promise<(Friendship & { requester: LeaderboardUser & { level: number } })[]>;
   areFriends(userId1: string, userId2: string): Promise<boolean>;
 
   // Rank Rewards methods
@@ -561,26 +664,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Streak Leaderboard methods
-  async getWeeklyStreakLeaderboard(limit: number = 10): Promise<(StreakLeaderboard & { user: User })[]> {
+  async getWeeklyStreakLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
     const weekStart = this.getCurrentWeekStart();
-    
+
     const leaderboardEntries = await db
       .select({
-        id: streakLeaderboard.id,
-        userId: streakLeaderboard.userId,
-        weekStartDate: streakLeaderboard.weekStartDate,
-        bestStreak: streakLeaderboard.bestStreak,
-        totalStreakGames: streakLeaderboard.totalStreakGames,
-        totalStreakEarnings: streakLeaderboard.totalStreakEarnings,
-        rank: streakLeaderboard.rank,
-        createdAt: streakLeaderboard.createdAt,
-        updatedAt: streakLeaderboard.updatedAt,
+        leaderboard: streakLeaderboard,
         user: {
           id: users.id,
           username: users.username,
           selectedAvatarId: users.selectedAvatarId,
           membershipType: users.membershipType,
-        }
+        },
       })
       .from(streakLeaderboard)
       .innerJoin(users, eq(streakLeaderboard.userId, users.id))
@@ -588,32 +683,24 @@ export class DatabaseStorage implements IStorage {
       .orderBy(streakLeaderboard.rank)
       .limit(limit);
 
-    return leaderboardEntries.map(entry => ({
-      ...entry,
-      user: entry.user as User
-    }));
+    return leaderboardEntries.map(({ leaderboard, user }: { leaderboard: StreakLeaderboard; user: LeaderboardUser }) => ({
+      ...leaderboard,
+      user,
+    } satisfies LeaderboardEntry));
   }
 
-  async getPremiumWeeklyStreakLeaderboard(limit: number = 10): Promise<(StreakLeaderboard & { user: User })[]> {
+  async getPremiumWeeklyStreakLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
     const weekStart = this.getCurrentWeekStart();
-    
+
     const leaderboardEntries = await db
       .select({
-        id: streakLeaderboard.id,
-        userId: streakLeaderboard.userId,
-        weekStartDate: streakLeaderboard.weekStartDate,
-        bestStreak: streakLeaderboard.bestStreak,
-        totalStreakGames: streakLeaderboard.totalStreakGames,
-        totalStreakEarnings: streakLeaderboard.totalStreakEarnings,
-        rank: streakLeaderboard.rank,
-        createdAt: streakLeaderboard.createdAt,
-        updatedAt: streakLeaderboard.updatedAt,
+        leaderboard: streakLeaderboard,
         user: {
           id: users.id,
           username: users.username,
           selectedAvatarId: users.selectedAvatarId,
           membershipType: users.membershipType,
-        }
+        },
       })
       .from(streakLeaderboard)
       .innerJoin(users, eq(streakLeaderboard.userId, users.id))
@@ -624,13 +711,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`${streakLeaderboard.bestStreak} DESC, ${streakLeaderboard.totalStreakEarnings} DESC`)
       .limit(limit);
 
-    return leaderboardEntries.map(entry => ({
-      ...entry,
-      user: entry.user as User
-    }));
+    return leaderboardEntries.map(({ leaderboard, user }: { leaderboard: StreakLeaderboard; user: LeaderboardUser }) => ({
+      ...leaderboard,
+      user,
+    } satisfies LeaderboardEntry));
   }
 
-  async getTop50StreakLeaderboard(): Promise<(StreakLeaderboard & { user: User })[]> {
+  async getTop50StreakLeaderboard(): Promise<LeaderboardEntry[]> {
     // Get top 50 users by their maxStreak21 directly from users table
     const topUsers = await db
       .select({
@@ -640,7 +727,7 @@ export class DatabaseStorage implements IStorage {
         membershipType: users.membershipType,
         maxStreak21: users.maxStreak21,
         totalStreakWins: users.totalStreakWins,
-        totalStreakEarnings: users.totalStreakEarnings
+        totalStreakEarnings: users.totalStreakEarnings,
       })
       .from(users)
       .where(and(
@@ -652,13 +739,13 @@ export class DatabaseStorage implements IStorage {
 
     // Map to leaderboard format
     const weekStart = this.getCurrentWeekStart();
-    return topUsers.map((user, index) => ({
+    return topUsers.map((user: StreakTopUser, index: number) => ({
       id: `temp-${user.id}`,
       userId: user.id,
       weekStartDate: weekStart,
-      bestStreak: user.maxStreak21 || 0,
-      totalStreakGames: user.totalStreakWins || 0,
-      totalStreakEarnings: user.totalStreakEarnings || 0,
+      bestStreak: user.maxStreak21 ?? 0,
+      totalStreakGames: user.totalStreakWins ?? 0,
+      totalStreakEarnings: user.totalStreakEarnings ?? 0,
       rank: index + 1,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -667,8 +754,8 @@ export class DatabaseStorage implements IStorage {
         username: user.username,
         selectedAvatarId: user.selectedAvatarId,
         membershipType: user.membershipType,
-      } as User
-    }));
+      },
+    } satisfies LeaderboardEntry));
   }
 
   async updateWeeklyStreakEntry(userId: string, bestStreak: number, weekStartDate: Date, totalGames: number, totalEarnings: number): Promise<StreakLeaderboard> {
@@ -822,14 +909,14 @@ export class DatabaseStorage implements IStorage {
       );
     
     return {
-      freeTiers: freeRewards.map(r => r.tier),
-      premiumTiers: premiumRewards.map(r => r.tier)
+      freeTiers: freeRewards.map((r: { tier: number }): number => r.tier),
+      premiumTiers: premiumRewards.map((r: { tier: number }): number => r.tier),
     };
   }
 
   async claimBattlePassTier(userId: string, seasonId: string, tier: number, isPremium: boolean = false): Promise<{ coins: number; gems: number; tickets: number }> {
     // CRITICAL: Wrap ALL operations in atomic transaction for data integrity
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: typeof db) => {
       // Step 1: Check if tier is already claimed for this reward type and season (with transaction lock)
       const existingClaim = await tx
         .select()
@@ -904,6 +991,8 @@ export class DatabaseStorage implements IStorage {
       
       return returnRewards;
     });
+
+    return result;
   }
 
   async createGameStats(insertStats: InsertGameStats): Promise<GameStats> {
@@ -914,14 +1003,13 @@ export class DatabaseStorage implements IStorage {
     return stats;
   }
 
-  async getUserStats(userId: string): Promise<any> {
+  async getUserStats(userId: string): Promise<UserStatsSummary> {
     const userStats = await db
       .select()
       .from(gameStats)
       .where(eq(gameStats.userId, userId));
 
-    // Aggregate stats
-    const aggregated = userStats.reduce((acc, stats) => {
+    const aggregated = userStats.reduce((acc: UserStatsSummary, stats: GameStats) => {
       acc.handsPlayed += stats.handsPlayed || 0;
       acc.handsWon += stats.handsWon || 0;
       acc.handsLost += stats.handsLost || 0;
@@ -944,7 +1032,7 @@ export class DatabaseStorage implements IStorage {
       busts: 0,
       correctDecisions: 0,
       totalDecisions: 0,
-    });
+    } satisfies UserStatsSummary);
 
     return aggregated;
   }
@@ -1042,7 +1130,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createSpin(userId: string, reward: any): Promise<DailySpin> {
+  async createSpin(userId: string, reward: InsertDailySpin["reward"]): Promise<DailySpin> {
     const [spin] = await db
       .insert(dailySpins)
       .values({
@@ -1238,8 +1326,10 @@ export class DatabaseStorage implements IStorage {
         .select({ id: challenges.id })
         .from(challenges)
         .where(sql`${challenges.createdAt} >= ${currentFrenchDay.toISOString()} AND ${challenges.createdAt} < ${nextFrenchDay.toISOString()}`);
-      
-      const challengeIds = todaysChallengeIds.map(c => c.id);
+
+      const challengeIds = todaysChallengeIds
+        .map(({ id }: { id: string | null }) => id)
+        .filter((id: string | null): id is string => typeof id === 'string');
       
       if (challengeIds.length > 0) {
         // Delete user challenges first (foreign key constraint)
@@ -1625,9 +1715,8 @@ export class DatabaseStorage implements IStorage {
         cardBacks.name
       );
 
-    return userCardBacksWithDetails
-      .filter(item => item && item.cardBack) // Filter out any null/undefined items
-      .map(item => ({
+    return userCardBacksWithDetails.map(
+      (item: UserCardBackRow) => ({
         id: item.id,
         userId: item.userId,
         cardBackId: item.cardBackId,
@@ -1635,14 +1724,15 @@ export class DatabaseStorage implements IStorage {
         acquiredAt: item.acquiredAt,
         cardBack: {
           id: item.cardBack.id,
-          name: item.cardBack.name || '',
-          rarity: item.cardBack.rarity || 'COMMON',
-          priceGems: item.cardBack.priceGems || 0,
-          imageUrl: item.cardBack.imageUrl || '',
+          name: item.cardBack.name ?? '',
+          rarity: item.cardBack.rarity ?? 'COMMON',
+          priceGems: item.cardBack.priceGems ?? 0,
+          imageUrl: item.cardBack.imageUrl ?? '',
           isActive: item.cardBack.isActive ?? true,
-          createdAt: item.cardBack.createdAt || new Date()
-        } as CardBack
-      }));
+          createdAt: item.cardBack.createdAt ?? new Date(),
+        },
+      } satisfies UserCardBack & { cardBack: CardBack }),
+    );
   }
 
   async addCardBackToUser(userId: string, cardBackId: string): Promise<UserCardBack> {
@@ -1675,24 +1765,15 @@ export class DatabaseStorage implements IStorage {
       .from(userCardBacks)
       .where(eq(userCardBacks.userId, userId));
 
-    const ownedIds = ownedCardBackIds.map(item => item.cardBackId);
+    const ownedIds = ownedCardBackIds
+      .map(({ cardBackId }: { cardBackId: string | null }) => cardBackId)
+      .filter((id: string | null): id is string => typeof id === 'string');
     
     // Get all active card backs from database instead of JSON
-    const allCardBacksFromDb = await db
+    const allCardBacks = await db
       .select()
       .from(cardBacks)
       .where(eq(cardBacks.isActive, true));
-
-    // Convert database results to CardBack format
-    const allCardBacks: CardBack[] = allCardBacksFromDb.map(cb => ({
-      id: cb.id,
-      name: cb.name,
-      rarity: cb.rarity,
-      priceGems: cb.priceGems,
-      imageUrl: cb.imageUrl,
-      isActive: cb.isActive ?? true,
-      createdAt: cb.createdAt || new Date()
-    }));
 
     if (ownedIds.length === 0) {
       // User owns no card backs, return all
@@ -1700,7 +1781,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Filter out owned card backs
-    return allCardBacks.filter(cardBack => !ownedIds.includes(cardBack.id));
+    return allCardBacks.filter((cardBack: CardBack) => !ownedIds.includes(cardBack.id));
   }
 
   // Buy a specific card back by ID
@@ -1723,7 +1804,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Card back not available for purchase');
     }
 
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: typeof db) => {
       // CRITICAL: Lock user row with SELECT FOR UPDATE to prevent race conditions
       const [user] = await tx
         .select()
@@ -1787,7 +1868,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Mystery pack temporarily unavailable - please try again later');
     }
 
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: typeof db) => {
       // CRITICAL: Lock user row with SELECT FOR UPDATE to prevent race conditions
       const [user] = await tx
         .select()
@@ -1834,25 +1915,28 @@ export class DatabaseStorage implements IStorage {
         await tx
           .insert(userCardBacks)
           .values({ userId, cardBackId: selectedCardBack.id, source: 'purchase' });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorCode = getErrorCode(error);
+        const errorMessage = getErrorMessage(error);
+
         // Handle duplicate key constraint violation gracefully
-        if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('UNIQUE constraint')) {
+        if (errorCode === '23505' || errorMessage.includes('duplicate key') || errorMessage.includes('UNIQUE constraint')) {
           throw new Error('Card back already owned');
         }
-        
+
         // CRITICAL: Handle foreign key constraint violation (card_back doesn't exist)
-        if (error.code === '23503' || error.message?.includes('violates foreign key constraint') || error.message?.includes('is not present in table')) {
+        if (errorCode === '23503' || errorMessage.includes('violates foreign key constraint') || errorMessage.includes('is not present in table')) {
           console.error(`❌ CRITICAL: Card back "${selectedCardBack.id}" missing from database during purchase`);
-          console.error(`📊 Error details:`, { 
-            cardBackId: selectedCardBack.id, 
+          console.error(`📊 Error details:`, {
+            cardBackId: selectedCardBack.id,
             cardBackName: selectedCardBack.name,
-            errorCode: error.code,
-            errorMessage: error.message 
+            errorCode,
+            errorMessage,
           });
           throw new Error('Card back unavailable - please try again');
         }
-        
-        throw error;
+
+        throw error instanceof Error ? error : new Error(errorMessage);
       }
 
       // Record the purchase for analytics
@@ -1932,7 +2016,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Utility method to generate game hash for idempotence
-  generateGameHash(userId: string, playerHand: any[], dealerHand: any[], timestamp?: number): string {
+  generateGameHash(userId: string, playerHand: BlackjackCard[], dealerHand: BlackjackCard[], timestamp?: number): string {
     const data = {
       userId,
       playerHand,
@@ -1942,8 +2026,8 @@ export class DatabaseStorage implements IStorage {
     return createHash('sha256').update(JSON.stringify(data)).digest('hex');
   }
 
-  async executeAllInGameSecure(userId: string, playerHand: any[], dealerHand: any[], gameHash?: string): Promise<AllInGameResult> {
-    return await db.transaction(async (tx) => {
+  async executeAllInGameSecure(userId: string, playerHand: BlackjackCard[], dealerHand: BlackjackCard[], gameHash?: string): Promise<AllInGameResult> {
+    const result = await db.transaction(async (tx: typeof db) => {
       // Check for duplicate game using hash (idempotence)
       if (gameHash) {
         const existingGame = await tx
@@ -1982,14 +2066,14 @@ export class DatabaseStorage implements IStorage {
 
       // SECURITY: Validate game using server-side BlackjackEngine with win bias
       // Get All-in win bias configuration (default 8% improvement in win rate)
-      const allInWinBias = await this.getConfig('allInWinBias') || 0.08;
-      const rebatePercent = await this.getConfig('lossRebatePct') || 0.05;
-      
+      const allInWinBiasConfig = await this.getConfig('allInWinBias');
+      const allInWinBias = typeof allInWinBiasConfig === 'number' ? allInWinBiasConfig : 0.08;
       let gameResult: ReturnType<typeof ServerBlackjackEngine.validateAllInGame>;
       try {
         gameResult = ServerBlackjackEngine.validateAllInGame(playerHand, dealerHand, allInWinBias);
-      } catch (error: any) {
-        throw new Error(`Invalid game data: ${error.message}`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Invalid game data: ${message}`);
       }
       
       const betAmount = coins; // All-in means betting all coins
@@ -2090,12 +2174,12 @@ export class DatabaseStorage implements IStorage {
         }
       };
     });
-    
+
     // Update max single win for victories (track best single-game winnings)
     if (result.outcome.won && result.outcome.payout > 0) {
       await this.updateMaxSingleWin(userId, result.outcome.payout);
     }
-    
+
     return result;
   }
 
@@ -2121,18 +2205,24 @@ export class DatabaseStorage implements IStorage {
     // Create a mock game result for compatibility
     const mockGameResult = {
       result: gameResult,
-      playerHand: [{ suit: 'hearts', rank: 'A' }, { suit: 'spades', rank: 'K' }],
-      dealerHand: [{ suit: 'clubs', rank: '10' }, { suit: 'diamonds', rank: '7' }],
+      playerHand: [
+        { suit: 'hearts', value: 'A', numericValue: 11 },
+        { suit: 'spades', value: 'K', numericValue: 10 },
+      ] satisfies BlackjackCard[],
+      dealerHand: [
+        { suit: 'clubs', value: '10', numericValue: 10 },
+        { suit: 'diamonds', value: '7', numericValue: 7 },
+      ] satisfies BlackjackCard[],
       isPlayerBlackjack: isBlackjack || false,
       playerTotal: 21,
-      dealerTotal: 17
+      dealerTotal: 17,
     };
-    
+
     return this.executeAllInGameSecure(userId, mockGameResult.playerHand, mockGameResult.dealerHand);
   }
 
   // Config methods
-  async getConfig(key: string): Promise<any> {
+  async getConfig(key: string): Promise<unknown> {
     try {
       const [configRecord] = await db
         .select()
@@ -2152,7 +2242,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async setConfig(key: string, value: any): Promise<void> {
+  async setConfig(key: string, value: unknown): Promise<void> {
     try {
       const jsonValue = JSON.stringify(value);
       
@@ -2190,16 +2280,15 @@ export class DatabaseStorage implements IStorage {
     // Join with friendships to get the friendship status
     const foundUsers = await db
       .select({
-        id: users.id,
-        username: users.username,
-        selectedAvatarId: users.selectedAvatarId,
-        level: users.level,
-        coins: users.coins,
-        xp: users.xp,
-        membershipType: users.membershipType,
-        createdAt: users.createdAt,
+        user: {
+          id: users.id,
+          username: users.username,
+          selectedAvatarId: users.selectedAvatarId,
+          membershipType: users.membershipType,
+          level: users.level,
+        },
         friendshipStatus: sql<string | null>`
-          CASE 
+          CASE
             WHEN ${friendships.status} = 'accepted' THEN 'friends'
             WHEN ${friendships.status} = 'pending' AND ${friendships.requesterId} = ${excludeUserId} THEN 'pending_sent'
             WHEN ${friendships.status} = 'pending' AND ${friendships.recipientId} = ${excludeUserId} THEN 'pending_received'
@@ -2210,14 +2299,17 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(
         friendships,
-        sql`(${friendships.requesterId} = ${users.id} AND ${friendships.recipientId} = ${excludeUserId}) OR 
+        sql`(${friendships.requesterId} = ${users.id} AND ${friendships.recipientId} = ${excludeUserId}) OR
             (${friendships.requesterId} = ${excludeUserId} AND ${friendships.recipientId} = ${users.id})`
       )
       .where(conditions)
       .orderBy(users.username)
       .limit(20);
 
-    return foundUsers as (User & { friendshipStatus: string | null })[];
+    return foundUsers.map(({ user, friendshipStatus }: { user: SearchResultUser; friendshipStatus: string | null }) => ({
+      ...user,
+      friendshipStatus,
+    } satisfies SearchResultUser & { friendshipStatus: string | null }));
   }
 
   async sendFriendRequest(requesterId: string, recipientId: string): Promise<Friendship> {
@@ -2296,14 +2388,16 @@ export class DatabaseStorage implements IStorage {
     const friends = await db
       .select({
         friendshipId: friendships.id,
-        id: users.id,
-        username: users.username,
-        selectedAvatarId: users.selectedAvatarId,
-        level: users.level,
-        coins: users.coins,
-        xp: users.xp,
-        membershipType: users.membershipType,
-        createdAt: users.createdAt,
+        user: {
+          id: users.id,
+          username: users.username,
+          selectedAvatarId: users.selectedAvatarId,
+          level: users.level,
+          coins: users.coins,
+          xp: users.xp,
+          membershipType: users.membershipType,
+          createdAt: users.createdAt,
+        },
         totalGamesPlayed: sql<number>`COALESCE(SUM(${gameStats.handsPlayed}), 0)`.as('totalGamesPlayed'),
         totalWins: sql<number>`COALESCE(SUM(${gameStats.handsWon}), 0)`.as('totalWins')
       })
@@ -2319,27 +2413,40 @@ export class DatabaseStorage implements IStorage {
       .orderBy(users.username);
 
     // Calculate win rate for each friend
-    return friends.map(friend => ({
-      ...friend,
-      winRate: friend.totalGamesPlayed > 0 ? Math.round((friend.totalWins / friend.totalGamesPlayed) * 100) : 0
-    })) as (User & { friendshipId: string; totalGamesPlayed: number; winRate: number })[];
+    return friends.map(({
+      friendshipId,
+      user,
+      totalGamesPlayed,
+      totalWins,
+    }: {
+      friendshipId: string;
+      user: PublicFriend;
+      totalGamesPlayed: number | null;
+      totalWins: number | null;
+    }) => {
+      const gamesPlayed = totalGamesPlayed ?? 0;
+      const wins = totalWins ?? 0;
+      const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
+
+      return {
+        ...user,
+        friendshipId,
+        totalGamesPlayed: gamesPlayed,
+        winRate,
+      } satisfies PublicFriend & { friendshipId: string; totalGamesPlayed: number; winRate: number };
+    });
   }
 
-  async getFriendRequests(userId: string): Promise<(Friendship & { requester: User })[]> {
+  async getFriendRequests(userId: string): Promise<(Friendship & { requester: LeaderboardUser & { level: number } })[]> {
     const requests = await db
       .select({
-        id: friendships.id,
-        requesterId: friendships.requesterId,
-        recipientId: friendships.recipientId,
-        status: friendships.status,
-        createdAt: friendships.createdAt,
-        updatedAt: friendships.updatedAt,
+        friendship: friendships,
         requester: {
           id: users.id,
           username: users.username,
           selectedAvatarId: users.selectedAvatarId,
+          membershipType: users.membershipType,
           level: users.level,
-          membershipType: users.membershipType
         }
       })
       .from(friendships)
@@ -2352,10 +2459,10 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(friendships.createdAt);
 
-    return requests.map(request => ({
-      ...request,
-      requester: request.requester as User
-    }));
+    return requests.map(({ friendship, requester }: { friendship: Friendship; requester: LeaderboardUser & { level: number } }) => ({
+      ...friendship,
+      requester,
+    } satisfies Friendship & { requester: LeaderboardUser & { level: number } }));
   }
 
   async areFriends(userId1: string, userId2: string): Promise<boolean> {
@@ -2463,7 +2570,9 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.membershipType, 'premium'));
     
-    const premiumUserIds = premiumUsers.map(u => u.id);
+    const premiumUserIds = premiumUsers
+      .map(({ id }: { id: string | null }) => id)
+      .filter((id: string | null): id is string => typeof id === 'string');
     
     if (premiumUserIds.length > 0) {
       // Delete their leaderboard entries using safe inArray

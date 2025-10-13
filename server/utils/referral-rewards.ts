@@ -1,6 +1,6 @@
-import { db } from '../db';
-import { users, gameStats } from '../../shared/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { db } from "../db";
+import { users, gameStats } from "../db/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 /**
  * Vérifie et distribue les récompenses de parrainage quand un utilisateur atteint 11 victoires (Moo Rookie)
@@ -52,7 +52,7 @@ export async function checkAndDistributeReferralRewards(userId: string): Promise
     }
 
     // ATOMIC TRANSACTION: Distribuer les récompenses
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: typeof db) => {
       // Vérifier à nouveau que les récompenses n'ont pas été distribuées (éviter race condition)
       const checkUser = await tx
         .select({ referralRewardClaimed: users.referralRewardClaimed })

@@ -1,17 +1,27 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./services/storage";
 import { db } from "./db";
 import { eq, and, gte, sql } from "drizzle-orm";
+import { users, betDrafts, dailySpins } from "./db/schema";
 import { EconomyManager } from "../client/src/lib/economy";
-import { ChallengeService } from "./challengeService";
-import { SeasonService } from "./seasonService";
+import { ChallengeService } from "./services/challengeService";
+import { SeasonService } from "./services/seasonService";
 import bcrypt from "bcrypt";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import Stripe from "stripe";
 import { validateReferralCode, canEnterReferralCode } from "./utils/referral";
 import { checkAndDistributeReferralRewards } from "./utils/referral-rewards";
+import {
+  insertUserSchema,
+  betPrepareSchema,
+  betCommitSchema,
+  insertGameStatsSchema,
+  claimBattlePassTierSchema,
+  selectCardBackSchema,
+  submitReferralCodeSchema,
+} from "./validation";
 import {
   Client,
   Environment,
@@ -906,44 +916,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/stats", requireAuth, async (req, res) => {
     try {
       const userId = (req.session as any).userId;
-      const statsData = insertGameStatsSchema.parse({
+      const statsInput = insertGameStatsSchema.parse({
         ...req.body,
         userId,
       });
 
-      const stats = await storage.createGameStats(statsData);
+      const stats = await storage.createGameStats({
+        ...statsInput,
+        gameType: statsInput.gameType ?? "classic",
+      });
       
       // Mettre à jour la progression des challenges automatiquement
       const gameResult = {
-        handsPlayed: statsData.handsPlayed || 0,
-        handsWon: statsData.handsWon || 0,
-        blackjacks: statsData.blackjacks || 0,
-        coinsWon: (statsData.totalWinnings || 0) - (statsData.totalLosses || 0) // Gain net
+        handsPlayed: statsInput.handsPlayed || 0,
+        handsWon: statsInput.handsWon || 0,
+        blackjacks: statsInput.blackjacks || 0,
+        coinsWon: (statsInput.totalWinnings || 0) - (statsInput.totalLosses || 0) // Gain net
       };
       
       const completedChallenges = await ChallengeService.updateChallengeProgress(userId, gameResult);
       
       // Système d'XP : +50 XP par victoire en mode All-in, +15 XP pour les autres modes
       let xpResult;
-      const isAllInMode = statsData.gameType === "all-in";
+      const isAllInMode = stats.gameType === "all-in";
       const xpPerWin = isAllInMode ? 50 : 15;
-      const xpGained = (statsData.handsWon || 0) * xpPerWin;
+      const xpGained = (statsInput.handsWon || 0) * xpPerWin;
       if (xpGained > 0) {
         xpResult = await storage.addXPToUser(userId, xpGained);
       }
       
       // Mise à jour du streak pour le mode 21 Streak (high-stakes)
       let streakResult;
-      if (statsData.gameType === "high-stakes" && (statsData.handsPlayed || 0) > 0) {
-        const winsCount = (statsData.handsWon || 0) + (statsData.blackjacks || 0);
-        const net = (statsData.totalWinnings || 0) - (statsData.totalLosses || 0);
-        const isPush = winsCount === 0 && net === 0 && (statsData.handsPlayed || 0) > 0;
+      if (stats.gameType === "high-stakes" && (statsInput.handsPlayed || 0) > 0) {
+        const winsCount = (statsInput.handsWon || 0) + (statsInput.blackjacks || 0);
+        const net = (statsInput.totalWinnings || 0) - (statsInput.totalLosses || 0);
+        const isPush = winsCount === 0 && net === 0 && (statsInput.handsPlayed || 0) > 0;
         const isLoss = winsCount === 0 && net < 0;
-        
+
         if (winsCount > 0) {
           // Victoire(s) : incrémenter le streak par le nombre de victoires
           for (let i = 0; i < winsCount; i++) {
-            streakResult = await storage.incrementStreak21(userId, (statsData.totalWinnings || 0) / winsCount);
+            streakResult = await storage.incrementStreak21(userId, (statsInput.totalWinnings || 0) / winsCount);
           }
         } else if (isLoss) {
           // Défaite : réinitialiser le streak
@@ -953,7 +966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update max single win for all game modes (track best single-game winnings)
-      const netWinnings = (statsData.totalWinnings || 0) - (statsData.totalLosses || 0);
+      const netWinnings = (statsInput.totalWinnings || 0) - (statsInput.totalLosses || 0);
       if (netWinnings > 0) {
         await storage.updateMaxSingleWin(userId, netWinnings);
       }

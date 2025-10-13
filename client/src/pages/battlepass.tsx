@@ -87,6 +87,17 @@ const BATTLE_PASS_TIERS: PassTier[] = [
 
 const SEASON_MAX_XP = 500; // Same rule as in profile: 500 XP per level
 
+interface SeasonInfoResponse {
+  seasonName?: string;
+  seasonId?: string;
+  wasReset?: boolean;
+  timeRemaining?: {
+    days: number;
+    hours: number;
+    minutes: number;
+  };
+}
+
 export default function BattlePassPage() {
   const user = useUserStore((state) => state.user);
   const [, navigate] = useLocation();
@@ -97,7 +108,7 @@ export default function BattlePassPage() {
   const [claimingTier, setClaimingTier] = useState<{ tier: number; isPremium: boolean } | null>(null);
 
   // Fetch season info with auto-reset check
-  const { data: seasonInfo } = useQuery({
+  const { data: seasonInfo } = useQuery<SeasonInfoResponse>({
     queryKey: ['/api/seasons/info'],
     refetchInterval: 300000, // Update every 5 minutes
   });

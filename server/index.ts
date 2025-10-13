@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { seedCardBacks /*, addSingleCardBack */ } from "./seedCardBacks";
-import { storage } from "./storage";
+import { storage } from "./services/storage";
 import { runReferralMigration } from "./referral-migration";
 import { generateReferralCodesForExistingUsers } from "./utils/generate-referral-codes";
 import fs from "fs";

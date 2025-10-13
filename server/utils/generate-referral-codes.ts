@@ -1,7 +1,7 @@
-import { db } from '../db';
-import { users } from '../../shared/schema';
-import { isNull, eq } from 'drizzle-orm';
-import { generateUniqueReferralCode } from './referral';
+import { db } from "../db";
+import { users } from "../db/schema";
+import { isNull, eq } from "drizzle-orm";
+import { generateUniqueReferralCode } from "./referral";
 
 /**
  * Génère des codes de parrainage pour tous les utilisateurs qui n'en ont pas
