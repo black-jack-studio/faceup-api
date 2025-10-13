@@ -11,7 +11,7 @@ interface LeaderboardUser {
 }
 
 export default function Leaderboard() {
-  const { data: leaderboard = [], isLoading } = useQuery({
+  const { data: leaderboard = [], isLoading } = useQuery<LeaderboardUser[]>({
     queryKey: ["/api/leaderboard/weekly"],
   });
 

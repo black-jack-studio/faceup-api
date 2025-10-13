@@ -204,7 +204,7 @@ ALTER TABLE IF EXISTS public.users
       columns: true,
       skip_empty_lines: true,
       trim: true
-    });
+    }) as Record<string, string>[];
 
     if (records.length === 0) continue;
 
@@ -212,7 +212,7 @@ ALTER TABLE IF EXISTS public.users
 
     for (const record of records) {
       const columns = Object.keys(record);
-      const values = columns.map(col => {
+      const values = columns.map((col) => {
         const val = record[col];
         
         // Gérer les mots de passe NULL - générer un hash par défaut

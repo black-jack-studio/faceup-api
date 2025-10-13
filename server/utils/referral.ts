@@ -1,6 +1,6 @@
-import { db } from '../db';
-import { users } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { db } from "../db";
+import { users } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Génère un code de parrainage unique de 6 caractères (A-Z, 0-9)

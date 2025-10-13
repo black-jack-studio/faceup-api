@@ -1,6 +1,6 @@
-import { db } from './db.js';
-import { cardBacks, userCardBacks } from '@shared/schema';
-import { sql } from 'drizzle-orm';
+import { db } from "./db";
+import { cardBacks, userCardBacks } from "./db/schema";
+import { sql } from "drizzle-orm";
 
 interface CardBackData {
   name: string;

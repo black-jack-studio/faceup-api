@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import type { Challenge, InsertChallenge } from "@shared/schema";
+import type { Challenge, InsertChallenge } from "../db/schema";
 
 export class ChallengeService {
   // Types de challenges disponibles avec leurs configurations
