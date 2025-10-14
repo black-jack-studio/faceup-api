@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@shared/schema';
 import { apiRequest, queryClient, invalidateCSRFToken } from '@/lib/queryClient';
+import { login as loginRequest, register as registerRequest, logout as logoutRequest } from '@/lib/api';
 
 interface UserState {
   user: User | null;
@@ -11,7 +12,7 @@ interface UserState {
 
 interface UserActions {
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, confirmPassword?: string) => Promise<void>;
   setUser: (user: User) => void;
   logout: () => void;
   loadUser: () => Promise<void>;
@@ -42,18 +43,13 @@ export const useUserStore = create<UserStore>()(
       // Actions
       login: async (username: string, password: string) => {
         set({ isLoading: true, error: null });
-        
+
         try {
-          const response = await apiRequest('POST', '/api/auth/login', {
-            username,
-            password,
-          });
-          
-          const userData = await response.json();
-          
+          const userData = await loginRequest({ username, password });
+
           // Invalidate CSRF token cache after login to force new token fetch
           invalidateCSRFToken();
-          
+
           set({ 
             user: userData.user, 
             isLoading: false,
@@ -74,21 +70,20 @@ export const useUserStore = create<UserStore>()(
         }
       },
 
-      register: async (username: string, email: string, password: string) => {
+      register: async (username: string, email: string, password: string, confirmPassword?: string) => {
         set({ isLoading: true, error: null });
-        
+
         try {
-          const response = await apiRequest('POST', '/api/auth/register', {
+          const userData = await registerRequest({
             username,
             email,
             password,
+            confirmPassword: confirmPassword ?? password,
           });
-          
-          const userData = await response.json();
-          
+
           // Invalidate CSRF token cache after registration to force new token fetch
           invalidateCSRFToken();
-          
+
           set({ 
             user: userData.user, 
             isLoading: false,
@@ -115,7 +110,7 @@ export const useUserStore = create<UserStore>()(
         set({ user: null, error: null });
         queryClient.clear();
         // Clear session on server
-        apiRequest('POST', '/api/auth/logout').catch(() => {
+        logoutRequest().catch(() => {
           // Ignore errors on logout
         });
       },

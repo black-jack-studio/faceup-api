@@ -12,6 +12,7 @@ import magnifyingGlassImage from "@assets/magnifying_glass_tilted_left_3d_175838
 import mailboxImage from "@assets/open_mailbox_with_raised_flag_3d_1758380421569.png";
 import searchIcon3D from "@assets/magnifying_glass_tilted_left_3d_1758380517118.png";
 import openMailboxImage from "@assets/open_mailbox_with_raised_flag_3d_1758384714878.png";
+import { apiFetch } from "@/lib/api";
 
 interface AddFriendModalProps {
   onClose: () => void;
@@ -30,7 +31,7 @@ export default function AddFriendModal({ onClose }: AddFriendModalProps) {
       if (!searchQuery.trim() || searchQuery.trim().length < 2) {
         return [];
       }
-      const response = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const response = await apiFetch(`/api/friends/search?q=${encodeURIComponent(searchQuery.trim())}`);
       if (!response.ok) {
         throw new Error("Failed to search users");
       }

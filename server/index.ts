@@ -7,7 +7,7 @@ import { generateReferralCodesForExistingUsers } from "./utils/generate-referral
 import fs from "fs";
 import path from "path";
 import { pingDB } from "./db"; 
-import cors, { type CorsOptions } from "cors";
+import cors from "cors";
 
 function log(message: string, source = "express") {
   const t = new Date().toLocaleTimeString("en-US", {
@@ -25,31 +25,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // --- CORS pour Capacitor (mobile only)
-const allowedOrigins = [
-  "capacitor://localhost",
-  "http://localhost",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
-  "http://localhost:5173",
-  "https://faceup-api.onrender.com",
-  "https://faceup.app",
-];
-
-const corsOptions: CorsOptions = {
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "capacitor://localhost",
+    "ionic://localhost",
+    "https://faceup-api.onrender.com",
+  ],
   credentials: true,
-  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
-};
-
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+}));
 
 // --- Statut de readiness ---
 let ready = false;

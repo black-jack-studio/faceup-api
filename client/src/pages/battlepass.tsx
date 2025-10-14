@@ -5,6 +5,7 @@ import { useUserStore } from '@/store/user-store';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
+import { apiFetch } from "@/lib/api";
 import Coin from '@/icons/Coin';
 import Gem from '@/icons/Gem';
 import freeChestIcon from '@assets/cofre-de-madera-3d-icon-png-download-6786354_1758880709054.webp';
@@ -209,9 +210,8 @@ export default function BattlePassPage() {
     setClaimingTier({ tier, isPremium });
 
     try {
-      const response = await fetch('/api/battlepass/claim-tier', {
+      const response = await apiFetch('/api/battlepass/claim-tier', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier, isPremium })
       });
 

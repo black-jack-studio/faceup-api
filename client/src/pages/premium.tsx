@@ -104,12 +104,8 @@ export default function Premium() {
       setShowPaymentModal(false);
       
       if (method === 'stripe') {
-        const response = await fetch('/api/create-payment-intent', {
+        const response = await apiFetch('/api/create-payment-intent', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
           body: JSON.stringify({
             amount: selectedPlan?.price,
             packType: 'premium',
@@ -629,3 +625,4 @@ export default function Premium() {
     </div>
   );
 }
+import { apiFetch } from "@/lib/api";

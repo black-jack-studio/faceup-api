@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { nanoid } from "nanoid";
+import { useChipsStore } from "@/store/chips-store";
 
 interface BetPrepareRequest {
   betId: string;
@@ -77,11 +78,11 @@ export function useBetting(options: UseBettingOptions = {}) {
         queryClient.invalidateQueries({ queryKey: ["/api/user/coins"] }),
       ]).catch(error => console.warn("Cache invalidation failed:", error));
       
-      // Force chips store to reload balance in background
-      import("@/store/chips-store").then(({ useChipsStore }) => {
-        const { loadBalance } = useChipsStore.getState();
-        return loadBalance();
-      }).catch(error => console.warn("Failed to reload chips balance:", error));
+      // Force chips store to reload balance (static import to avoid mixed import warning)
+      const { loadBalance } = useChipsStore.getState();
+      Promise.resolve(loadBalance()).catch(error =>
+        console.warn("Failed to reload chips balance:", error)
+      );
 
       setCurrentBetId(null);
       setCommittedAmount(null);
@@ -90,7 +91,6 @@ export function useBetting(options: UseBettingOptions = {}) {
       console.error("Bet commit failed:", error);
       const errorMessage = getErrorMessage(error);
       
-      // Handle specific error cases
       if (error.message?.includes("409")) {
         // Insufficient funds
         toast({
@@ -98,7 +98,6 @@ export function useBetting(options: UseBettingOptions = {}) {
           description: "You don't have enough coins for this bet.",
           variant: "destructive",
         });
-        // Redirect to shop after a delay
         setTimeout(() => navigate("/shop"), 2000);
       } else if (error.message?.includes("410")) {
         // Bet expired
@@ -132,25 +131,18 @@ export function useBetting(options: UseBettingOptions = {}) {
 
   const placeBet = async (amount: number): Promise<void> => {
     try {
-      // Generate unique bet ID
       const betId = nanoid();
       setCurrentBetId(betId);
-      
-      // Capture the committed amount before any async operations
       setCommittedAmount(amount);
 
-      // Navigate immediately for instant feedback (optimistic UI)
       const enhancedResult: BetSuccessResult = {
         success: true,
         deductedAmount: amount,
-        remainingCoins: 0, // Will be updated later
+        remainingCoins: 0,
         committedAmount: amount
       };
-      
-      // Call success callback immediately for instant navigation
       options.onSuccess?.(enhancedResult);
 
-      // Do the actual betting operations in background
       const prepareRequest: BetPrepareRequest = {
         betId,
         amount,
@@ -158,19 +150,14 @@ export function useBetting(options: UseBettingOptions = {}) {
       };
 
       const prepareResult = await prepareMutation.mutateAsync(prepareRequest);
-      
       if (!prepareResult.success) {
         throw new Error("Failed to prepare bet");
       }
 
-      const commitRequest: BetCommitRequest = {
-        betId,
-      };
-
+      const commitRequest: BetCommitRequest = { betId };
       await commitMutation.mutateAsync(commitRequest);
 
     } catch (error: any) {
-      // Error handling is done in the mutation onError handlers
       console.error("Place bet error:", error);
       setCurrentBetId(null);
       setCommittedAmount(null);
@@ -199,11 +186,8 @@ export function useBetting(options: UseBettingOptions = {}) {
 
 function getErrorMessage(error: any): string {
   if (error.message) {
-    // Extract message from error response
     const match = error.message.match(/\d+:\s*(.+)/);
-    if (match) {
-      return match[1];
-    }
+    if (match) return match[1];
     return error.message;
   }
   return "An unexpected error occurred. Please try again.";

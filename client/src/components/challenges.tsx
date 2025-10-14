@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import coinImage from "@assets/coins_1757366059535.png";
 import { queryClient } from "@/lib/queryClient";
+import { apiFetch } from "@/lib/api";
 
 interface Challenge {
   id: string;
@@ -59,7 +60,7 @@ export default function Challenges() {
   useEffect(() => {
     const fetchTimeLeft = async () => {
       try {
-        const response = await fetch('/api/challenges/time-until-reset');
+        const response = await apiFetch('/api/challenges/time-until-reset');
         const data = await response.json();
         setTimeLeft(data);
       } catch (error) {

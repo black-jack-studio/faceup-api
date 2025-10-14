@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 
 export default function AuthCallback() {
   const [, navigate] = useLocation();
@@ -40,9 +41,7 @@ export default function AuthCallback() {
 
         setStatus("Checking profile...");
 
-        const profileResponse = await fetch("/api/user/profile", {
-          credentials: "include",
-        });
+        const profileResponse = await apiFetch("/api/user/profile");
 
         if (import.meta.env.DEV) {
           console.log("Auth callback - profile check:", {
