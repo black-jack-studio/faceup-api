@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from "@/lib/api";
 
 interface GemsState {
   gems: number;
@@ -26,9 +27,7 @@ export const useGemsStore = create<GemsState>((set, get) => ({
   loadGems: async () => {
     set({ isLoading: true });
     try {
-      const response = await fetch('/api/user/gems', {
-        credentials: 'include'
-      });
+      const response = await apiFetch('/api/user/gems');
       if (response.ok) {
         const data = await response.json();
         set({ gems: data.gems || 0 });
@@ -69,12 +68,8 @@ export const useGemsStore = create<GemsState>((set, get) => ({
     
     // Then sync with database
     try {
-      await fetch('/api/user/gems/add', {
+      await apiFetch('/api/user/gems/add', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ amount, description, relatedId }),
       });
     } catch (error) {
@@ -106,12 +101,8 @@ export const useGemsStore = create<GemsState>((set, get) => ({
     
     // Then sync with database
     try {
-      await fetch('/api/user/gems/spend', {
+      await apiFetch('/api/user/gems/spend', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ amount, description, relatedId }),
       });
       return true;
@@ -125,9 +116,7 @@ export const useGemsStore = create<GemsState>((set, get) => ({
   
   loadTransactions: async () => {
     try {
-      const response = await fetch('/api/user/gems/transactions', {
-        credentials: 'include'
-      });
+      const response = await apiFetch('/api/user/gems/transactions');
       if (response.ok) {
         const transactions = await response.json();
         set({ transactions });
@@ -139,9 +128,7 @@ export const useGemsStore = create<GemsState>((set, get) => ({
   
   loadPurchases: async () => {
     try {
-      const response = await fetch('/api/user/gems/purchases', {
-        credentials: 'include'
-      });
+      const response = await apiFetch('/api/user/gems/purchases');
       if (response.ok) {
         const purchases = await response.json();
         set({ purchases });

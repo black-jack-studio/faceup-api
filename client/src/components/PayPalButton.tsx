@@ -7,6 +7,7 @@
 //
 // <BEGIN_EXACT_CODE>
 import React, { useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 
 declare global {
   namespace JSX {
@@ -48,10 +49,8 @@ export default function PayPalButton({
       packType: packType || 'premium',
       packId: packId || 'default',
     };
-    const response = await fetch("/api/paypal/order", {
+    const response = await apiFetch("/api/paypal/order", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: 'include',
       body: JSON.stringify(orderPayload),
     });
     const output = await response.json();
@@ -59,12 +58,8 @@ export default function PayPalButton({
   };
 
   const captureOrder = async (orderId: string) => {
-    const response = await fetch(`/api/paypal/order/${orderId}/capture`, {
+    const response = await apiFetch(`/api/paypal/order/${orderId}/capture`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: 'include',
     });
     const data = await response.json();
 
@@ -124,7 +119,7 @@ export default function PayPalButton({
   }, []);
   const initPayPal = async () => {
     try {
-      const clientToken: string = await fetch("/api/paypal/setup")
+      const clientToken: string = await apiFetch("/api/paypal/setup")
         .then((res) => res.json())
         .then((data) => {
           return data.clientToken;

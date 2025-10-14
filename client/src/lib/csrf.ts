@@ -1,7 +1,9 @@
+import { apiFetch } from "@/lib/api";
+
 let cachedToken: string | undefined;
 
 export async function fetchCSRFToken(): Promise<string> {
-  const res = await fetch("/api/auth/csrf", { credentials: "include" });
+  const res = await apiFetch("/api/auth/csrf");
   if (!res.ok) throw new Error("Failed to fetch CSRF token");
   const { csrfToken } = await res.json();
   cachedToken = csrfToken;

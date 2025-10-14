@@ -1,10 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { Capacitor } from "@capacitor/core";
-
-/** Base API: natif => Render, web => relatif */
-const API_BASE = Capacitor.isNativePlatform()
-  ? "https://faceup-api.onrender.com"
-  : "";
+import { apiFetch } from "@/lib/api";
 
 /** Normalisation des erreurs fetch */
 async function throwIfResNotOk(res: Response) {
@@ -32,14 +27,8 @@ export async function apiRequest(
   data?: unknown,
   _options?: { skipCSRF?: boolean } // ignoré : pas de CSRF en mobile
 ): Promise<Response> {
-  const fullUrl = `${API_BASE}${url}`;
-  const headers: Record<string, string> = {};
-  if (data !== undefined) headers["Content-Type"] = "application/json";
-
-  const res = await fetch(fullUrl, {
+  const res = await apiFetch(url, {
     method,
-    credentials: "include",
-    headers,
     body: data !== undefined ? JSON.stringify(data) : undefined,
   });
 
@@ -55,7 +44,7 @@ export function getQueryFn<T>(options: {
 }): QueryFunction<T> {
   return async ({ queryKey }) => {
     const [url] = queryKey as [string, ...unknown[]];
-    const res = await fetch(`${API_BASE}${url}`, { credentials: "include" });
+    const res = await apiFetch(url);
 
     if (options.on401 === "returnNull" && res.status === 401) {
       return null as unknown as T;

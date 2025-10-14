@@ -7,6 +7,7 @@ import {
   useStripe
 } from "@stripe/react-stripe-js";
 import {useEffect, useMemo, useState} from "react";
+import { apiFetch } from "@/lib/api";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY!);
 
@@ -56,9 +57,8 @@ function InnerButton({ amountCents, currency = "eur", label = "BlackGame purchas
       setIsProcessing(true);
       try {
         // Demande un clientSecret à ton backend
-        const r = await fetch("/api/create-payment-intent-wallet", {
+        const r = await apiFetch("/api/create-payment-intent-wallet", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             amount: amountCents,
             currency,

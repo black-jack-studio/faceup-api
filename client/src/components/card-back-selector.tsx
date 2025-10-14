@@ -7,6 +7,7 @@ import { CardBack } from "@/lib/card-backs";
 import { CardBack as DbCardBack } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { apiFetch } from "@/lib/api";
 import { Lock } from "lucide-react";
 import OffsuitCard from "@/components/PlayingCard";
 
@@ -133,13 +134,12 @@ export default function CardBackSelector({ currentCardBackId, onCardBackSelect }
   // Mutation pour acheter une carte
   const buyCardBackMutation = useMutation({
     mutationFn: async (cardBack: DbCardBack) => {
-      const response = await fetch("/api/shop/buy-card-back", {
+      const response = await apiFetch("/api/shop/buy-card-back", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          cardBackId: cardBack.id, 
+        body: JSON.stringify({
+          cardBackId: cardBack.id,
           price: cardBack.priceGems,
-          currency: "gems" 
+          currency: "gems"
         }),
       });
       if (!response.ok) throw new Error("Failed to buy card back");

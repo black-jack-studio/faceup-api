@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, UserPlus, User, Mail, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { register as registerRequest } from "@/lib/api";
 import { useUserStore } from "@/store/user-store";
 import { AppleLoginButton } from "@/components/auth/AppleLoginButton";
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
@@ -91,38 +91,13 @@ export default function Register() {
       setPasswordError("");
       setConfirmPasswordError("");
       
-      // Register with Replit DB
-      const response = await apiRequest('POST', '/api/auth/register', {
+      const data = await registerRequest({
         username,
         email,
-        password
+        password,
+        confirmPassword,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.message || "Registration failed";
-
-        // Handle specific errors
-        if (errorMessage.includes("Username already taken")) {
-          setUsernameError("This username is already taken");
-        } else if (errorMessage.includes("Email already registered")) {
-          setEmailError("This email is already in use");
-        } else if (errorMessage.includes("Password")) {
-          setPasswordError(errorMessage);
-        } else if (errorMessage.includes("email")) {
-          setEmailError(errorMessage);
-        } else {
-          toast({
-            title: "Registration error",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      const data = await response.json();
-      
       // Set user in store
       setUser(data.user);
 
@@ -134,12 +109,39 @@ export default function Register() {
       
       navigate("/");
     } catch (error: any) {
-      console.error('Registration error:', error);
-      toast({
-        title: "Network error",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
-      });
+      const errorMessage = error?.message || "Registration failed";
+      let handled = false;
+
+      if (typeof errorMessage === "string") {
+        if (errorMessage.includes("Username already taken")) {
+          setUsernameError("This username is already taken");
+          handled = true;
+        } else if (errorMessage.includes("Email already registered")) {
+          setEmailError("This email is already in use");
+          handled = true;
+        } else if (errorMessage.toLowerCase().includes("password")) {
+          setPasswordError(errorMessage);
+          handled = true;
+        } else if (errorMessage.toLowerCase().includes("email")) {
+          setEmailError(errorMessage);
+          handled = true;
+        }
+
+        if (!handled) {
+          toast({
+            title: "Registration error",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error('Registration error:', error);
+        toast({
+          title: "Network error",
+          description: "An error occurred. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

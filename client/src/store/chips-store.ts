@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from "@/lib/api";
 
 interface ChipsState {
   balance: number;
@@ -20,7 +21,7 @@ export const useChipsStore = create<ChipsState>((set, get) => ({
   loadBalance: async () => {
     set({ isLoading: true });
     try {
-      const response = await fetch('/api/user/coins');
+      const response = await apiFetch('/api/user/coins');
       if (response.ok) {
         const data = await response.json();
         set({ balance: data.coins || 0 });
@@ -53,11 +54,8 @@ export const useChipsStore = create<ChipsState>((set, get) => ({
     
     // Then sync with database
     try {
-      await fetch('/api/user/coins/update', {
+      await apiFetch('/api/user/coins/update', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ amount: newBalance }),
       });
     } catch (error) {
@@ -89,11 +87,8 @@ export const useChipsStore = create<ChipsState>((set, get) => ({
     
     // Then sync with database
     try {
-      await fetch('/api/user/coins/update', {
+      await apiFetch('/api/user/coins/update', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ amount: newBalance }),
       });
     } catch (error) {
@@ -121,11 +116,8 @@ export const useChipsStore = create<ChipsState>((set, get) => ({
     
     // Then sync with database
     try {
-      await fetch('/api/user/coins/update', {
+      await apiFetch('/api/user/coins/update', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ amount: finalBalance }),
       });
     } catch (error) {

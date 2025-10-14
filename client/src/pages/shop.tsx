@@ -19,6 +19,7 @@ import WheelOfFortune from "@/components/WheelOfFortune";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { apiFetch } from "@/lib/api";
 
 import newGemImage from "@assets/nfjezenf_1758044629929.png";
 import newGemsImage from "@assets/ibibiz_1757453181053.png";
@@ -194,12 +195,8 @@ export default function Shop() {
       setShowPaymentModal(false);
       
       if (method === 'stripe') {
-        const response = await fetch('/api/create-payment-intent', {
+        const response = await apiFetch('/api/create-payment-intent', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
           body: JSON.stringify({
             amount: selectedPack.price,
             packType: selectedPack.packType,
@@ -322,10 +319,8 @@ export default function Shop() {
       // Optimistically debit gems locally for immediate UI feedback
       updateUser({ gems: originalGems - 50 });
       
-      const response = await fetch("/api/shop/mystery-card-back", {
+      const response = await apiFetch("/api/shop/mystery-card-back", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
       });
       
       const result = await response.json();
