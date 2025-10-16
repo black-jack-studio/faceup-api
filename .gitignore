@@ -11,3 +11,7 @@ vite.config.ts.*
 *.tar.gz
 !legacy/**/*.cjs
 !legacy/**/*.cts
+.env
+.env.*
+client/.env
+client/.env.*
