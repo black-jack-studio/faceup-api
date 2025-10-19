@@ -9,6 +9,7 @@ import { useLocation, Link } from "wouter";
 import { LogIn, User, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
+
 // Import 3D assets to match app style
 import heartIcon from "@assets/heart_suit_3d_1757353734994.png";
 
