@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { User } from '@shared/schema';
 import { apiRequest, queryClient, invalidateCSRFToken } from '@/lib/queryClient';
 import { login as loginRequest, register as registerRequest, logout as logoutRequest } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
+import { syncUserCoinsToChips } from '@/lib/store-sync';
 
 interface UserState {
   user: User | null;
@@ -17,7 +19,7 @@ interface UserActions {
   logout: () => void;
   loadUser: () => Promise<void>;
   initializeAuth: () => Promise<void>;
-  updateUser: (updates: Partial<User>) => void;
+  updateUser: (updates: Partial<User>, options?: { skipServer?: boolean }) => void;
   addCoins: (amount: number) => void;
   addGems: (amount: number) => void;
   addTickets: (amount: number) => void;
@@ -31,6 +33,13 @@ interface UserActions {
 }
 
 type UserStore = UserState & UserActions;
+
+const coinsLogger = createLogger('COINS_SYNC');
+type ChipsStoreModule = typeof import('./chips-store');
+
+function getChipsStore() {
+  return (require('./chips-store') as ChipsStoreModule).useChipsStore;
+}
 
 export const useUserStore = create<UserStore>()(
   persist(
@@ -50,11 +59,13 @@ export const useUserStore = create<UserStore>()(
           // Invalidate CSRF token cache after login to force new token fetch
           invalidateCSRFToken();
 
-          set({ 
-            user: userData.user, 
+          set({
+            user: userData.user,
             isLoading: false,
-            error: null 
+            error: null
           });
+
+          syncUserCoinsToChips(userData.user?.coins ?? 0);
         } catch (error: any) {
           set({ 
             error: error.message || 'Login failed',
@@ -84,11 +95,13 @@ export const useUserStore = create<UserStore>()(
           // Invalidate CSRF token cache after registration to force new token fetch
           invalidateCSRFToken();
 
-          set({ 
-            user: userData.user, 
+          set({
+            user: userData.user,
             isLoading: false,
-            error: null 
+            error: null
           });
+
+          syncUserCoinsToChips(userData.user?.coins ?? 0);
         } catch (error: any) {
           set({ 
             error: error.message || 'Registration failed',
@@ -99,16 +112,19 @@ export const useUserStore = create<UserStore>()(
       },
 
       setUser: (user: User) => {
-        set({ 
+        set({
           user,
           isLoading: false,
-          error: null 
+          error: null
         });
+
+        syncUserCoinsToChips(user?.coins ?? 0);
       },
 
       logout: () => {
         set({ user: null, error: null });
         queryClient.clear();
+        syncUserCoinsToChips(0);
         // Clear session on server
         logoutRequest().catch(() => {
           // Ignore errors on logout
@@ -124,12 +140,14 @@ export const useUserStore = create<UserStore>()(
         try {
           const response = await apiRequest('GET', '/api/user/profile');
           const userData = await response.json();
-          
-          set({ 
+
+          set({
             user: userData,
             isLoading: false,
-            error: null 
+            error: null
           });
+
+          syncUserCoinsToChips(userData?.coins ?? 0);
         } catch (error: any) {
           // If unauthorized, clear user
           if (error.message.includes('401')) {
@@ -158,22 +176,25 @@ export const useUserStore = create<UserStore>()(
           // Try to fetch current user profile to verify session is still valid
           const response = await apiRequest('GET', '/api/user/profile');
           const userData = await response.json();
-          
+
           // Session is valid, update user data
-          set({ 
+          set({
             user: userData,
             isLoading: false,
-            error: null 
+            error: null
           });
+
+          syncUserCoinsToChips(userData?.coins ?? 0);
         } catch (error: any) {
           // Session is invalid or expired, clear stored user
           if (error.message.includes('401') || error.message.includes('403')) {
-            set({ 
+            set({
               user: null,
               isLoading: false,
-              error: null 
+              error: null
             });
             queryClient.clear();
+            syncUserCoinsToChips(0);
           } else {
             // Other error, keep stored user but show error
             set({ 
@@ -184,34 +205,53 @@ export const useUserStore = create<UserStore>()(
         }
       },
 
-      updateUser: (updates: Partial<User>) => {
+      updateUser: (updates: Partial<User>, options?: { skipServer?: boolean }) => {
         const currentUser = get().user;
         if (!currentUser) return;
-        
+
         set({
           user: { ...currentUser, ...updates }
         });
-        
+
+        if (options?.skipServer) {
+          return;
+        }
+
+        const serverUpdates = { ...updates } as Record<string, unknown>;
+        if ('coins' in serverUpdates) {
+          coinsLogger.debug('Skipping coins field in profile sync; handled via Supabase.');
+          delete serverUpdates.coins;
+        }
+
+        if (Object.keys(serverUpdates).length === 0) {
+          return;
+        }
+
         // Sync to server
-        apiRequest('PATCH', '/api/user/profile', updates).catch((error) => {
+        apiRequest('PATCH', '/api/user/profile', serverUpdates).catch((error) => {
           console.error('Failed to sync user updates:', error);
         });
       },
 
       addCoins: (amount: number) => {
         const currentUser = get().user;
-        if (!currentUser) return;
-        
-        const newCoins = (currentUser.coins || 0) + amount;
-        get().updateUser({ coins: newCoins });
-        
-        // Synchroniser avec useChipsStore pour l'affichage
-        try {
-          const { setBalance } = require('./chips-store').useChipsStore.getState();
-          setBalance(newCoins);
-        } catch (error) {
-          console.warn('Failed to sync with chips store:', error);
+        const previousCoins = currentUser?.coins ?? 0;
+        const expectedCoins = previousCoins + amount;
+
+        if (currentUser) {
+          get().updateUser({ coins: expectedCoins }, { skipServer: true });
         }
+
+        const useChipsStore = getChipsStore();
+        void useChipsStore
+          .getState()
+          .addWinnings(amount)
+          .catch((error: unknown) => {
+            coinsLogger.error('Failed to add coins via chips store', error);
+            if (currentUser) {
+              get().updateUser({ coins: previousCoins }, { skipServer: true });
+            }
+          });
       },
 
       addGems: (amount: number) => {
@@ -288,21 +328,23 @@ export const useUserStore = create<UserStore>()(
 
       spendCoins: (amount: number): boolean => {
         const currentUser = get().user;
-        if (!currentUser || (currentUser.coins || 0) < amount) {
+        const currentCoins = currentUser?.coins ?? 0;
+        if (!currentUser || currentCoins < amount) {
           return false;
         }
-        
-        const newCoins = (currentUser.coins || 0) - amount;
-        get().updateUser({ coins: newCoins });
-        
-        // Synchroniser avec useChipsStore pour l'affichage
-        try {
-          const { setBalance } = require('./chips-store').useChipsStore.getState();
-          setBalance(newCoins);
-        } catch (error) {
-          console.warn('Failed to sync with chips store:', error);
-        }
-        
+
+        const remainingCoins = currentCoins - amount;
+        get().updateUser({ coins: remainingCoins }, { skipServer: true });
+
+        const useChipsStore = getChipsStore();
+        void useChipsStore
+          .getState()
+          .deductBet(amount)
+          .catch((error: unknown) => {
+            coinsLogger.error('Failed to deduct coins via chips store', error);
+            get().updateUser({ coins: currentCoins }, { skipServer: true });
+          });
+
         return true;
       },
 

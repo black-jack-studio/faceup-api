@@ -4,12 +4,12 @@ import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { Lock, Star, Plus, RefreshCw } from "lucide-react";
-import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CheckoutForm from '@/components/checkout-form';
 import PayPalButton from '@/components/PayPalButton';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { getStripe } from '@/lib/stripe';
 import unlocked3d from "@assets/unlocked_3d_1758059243603.png";
 import star3d from "@assets/star_3d_1758059135945.png";
 import barChartIcon from "@assets/bar_chart_3d_1757364609374.png";
@@ -18,7 +18,7 @@ import creditCard3D from "@assets/credit_card_3d_1758309549361.png";
 import paypalPhone3D from "@assets/mobile_phone_with_arrow_3d_1758310366000.png";
 
 // Load Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY!);
+const stripePromise = getStripe();
 
 export default function Premium() {
   const [, navigate] = useLocation();

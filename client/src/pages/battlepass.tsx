@@ -6,6 +6,7 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { apiFetch } from "@/lib/api";
+import { reloadCoinsBalance } from '@/lib/store-sync';
 import Coin from '@/icons/Coin';
 import Gem from '@/icons/Gem';
 import freeChestIcon from '@assets/cofre-de-madera-3d-icon-png-download-6786354_1758880709054.webp';
@@ -239,12 +240,10 @@ export default function BattlePassPage() {
         });
         
         // Invalidate user data for balance display
-        await queryClient.invalidateQueries({ 
+        await queryClient.invalidateQueries({
           queryKey: ['/api/user/profile']
         });
-        await queryClient.invalidateQueries({ 
-          queryKey: ['/api/user/coins']
-        });
+        await reloadCoinsBalance();
         
       } else {
         // ROLLBACK optimistic update on error

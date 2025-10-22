@@ -6,6 +6,7 @@ import { useUserStore } from "@/store/user-store";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { reloadCoinsBalance } from "@/lib/store-sync";
 import BlackjackTable from "@/components/game/blackjack-table";
 
 export default function GameMode() {
@@ -53,7 +54,7 @@ export default function GameMode() {
       queryClient.invalidateQueries({ queryKey: ['/api/challenges/user'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats/summary'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user/profile'] }); // To update XP
-      queryClient.invalidateQueries({ queryKey: ['/api/user/coins'] }); // To update coins from completed challenges
+      void reloadCoinsBalance().catch(() => console.warn('Failed to reload coins after game stats update'));
       
       // Display gained XP if present
       if (data.xpGained > 0) {

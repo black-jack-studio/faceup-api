@@ -75,7 +75,6 @@ export function useBetting(options: UseBettingOptions = {}) {
       // Update caches in background (no await to avoid blocking UI)
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/user/coins"] }),
       ]).catch(error => console.warn("Cache invalidation failed:", error));
       
       // Force chips store to reload balance (static import to avoid mixed import warning)

@@ -4,7 +4,6 @@ import { ArrowLeft, ShoppingCart, Star, RotateCcw, Gift, Sparkles, X } from "luc
 import { useLocation } from "wouter";
 import { useUserStore } from "@/store/user-store";
 import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { useState, useEffect } from 'react';
 import CheckoutForm from '@/components/checkout-form';
 import PayPalButton from '@/components/paypal-button';
@@ -20,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/api";
+import { getStripe } from "@/lib/stripe";
+import { reloadCoinsBalance } from "@/lib/store-sync";
 
 import newGemImage from "@assets/nfjezenf_1758044629929.png";
 import newGemsImage from "@assets/ibibiz_1757453181053.png";
@@ -33,7 +34,7 @@ import creditCard3D from "@assets/credit_card_3d_1758309549361.png";
 import paypalPhone3D from "@assets/mobile_phone_with_arrow_3d_1758310366000.png";
 
 // Load Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = getStripe();
 
 export default function Shop() {
   const [, navigate] = useLocation();
@@ -88,7 +89,7 @@ export default function Shop() {
       
       // Refresh user data
       queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/coins"] });
+      void reloadCoinsBalance().catch((error) => console.warn('Failed to reload coins after payment:', error));
       
       // Clean URL
       const newUrl = window.location.pathname;
@@ -246,7 +247,7 @@ export default function Shop() {
     
     // Refresh user data and check subscription status
     queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/user/coins"] });
+    void reloadCoinsBalance().catch((error) => console.warn('Failed to reload coins after checkout:', error));
     
     // Load fresh user data and check subscription status for premium features
     try {

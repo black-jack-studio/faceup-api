@@ -3,26 +3,22 @@ import { motion } from 'framer-motion';
 import { useChipsStore } from '@/store/chips-store';
 
 export default function CoinsHero() {
-  // Get balance from useChipsStore
   const { balance, loadBalance, isLoading } = useChipsStore();
-  
-  // States for animation
+
   const [displayedBalance, setDisplayedBalance] = useState(balance);
   const [animationColor, setAnimationColor] = useState('');
   const [isAnimating, setIsAnimating] = useState(false);
   const previousBalanceRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
-  
-  // Load balance on component mount
+  const loadBalanceRef = useRef(loadBalance);
+
   useEffect(() => {
-    loadBalance();
+    loadBalanceRef.current = loadBalance;
   }, [loadBalance]);
 
-  // Debug: display balance changes
   useEffect(() => {
-    console.log('Current balance:', balance);
-    console.log('Stored balance:', localStorage.getItem('previousCoinsBalance'));
-  }, [balance]);
+    void loadBalanceRef.current();
+  }, []);
 
   // Animate coins when balance changes
   useEffect(() => {
@@ -30,8 +26,6 @@ export default function CoinsHero() {
     
     // Get the previously stored amount
     const storedBalance = localStorage.getItem('previousCoinsBalance');
-    console.log('Animation check - storedBalance:', storedBalance, 'current balance:', balance);
-    
     // If no old balance stored, this is the first visit
     if (!storedBalance) {
       setDisplayedBalance(balance);
@@ -50,7 +44,6 @@ export default function CoinsHero() {
     
     // There is a change, start animation
     const difference = balance - previousBalance;
-    console.log('Difference detected:', difference, 'starting animation');
     
     if (difference !== 0) {
       setIsAnimating(true);
