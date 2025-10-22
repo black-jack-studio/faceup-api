@@ -1,14 +1,21 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
+import { CONFIG } from './config';
+import { isNative } from './isNative';
+import { createLogger } from './logger';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const logger = createLogger('AUTH_SYNC');
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("❌ Variables d'environnement Supabase manquantes :", {
-    VITE_SUPABASE_URL: supabaseUrl,
-    VITE_SUPABASE_ANON_KEY: supabaseAnonKey ? "***" : undefined,
+if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+  logger.error('Missing Supabase configuration. Cannot initialize client.', {
+    hasUrl: Boolean(CONFIG.SUPABASE_URL),
+    hasAnonKey: Boolean(CONFIG.SUPABASE_ANON_KEY),
   });
-  throw new Error("Missing Supabase environment variables");
+  throw new Error('Supabase configuration is incomplete');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    storageKey: isNative ? 'nativeSession' : 'webSession',
+  },
+});

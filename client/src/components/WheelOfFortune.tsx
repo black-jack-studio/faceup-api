@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useUserStore } from "@/store/user-store";
+import { reloadCoinsBalance } from "@/lib/store-sync";
 import { Gem, Coin } from "@/icons";
 import Pointer3D from "@/components/Pointer3D";
 import { Ticket } from "@/components/ui/Ticket";
@@ -124,7 +125,7 @@ export default function WheelOfFortune({ children }: WheelOfFortuneProps) {
           });
 
           if (reward.type === 'coins') {
-            updateUser({ coins: (user?.coins || 0) + reward.amount });
+            await reloadCoinsBalance();
           } else if (reward.type === 'gems') {
             updateUser({ gems: (user?.gems || 0) + reward.amount });
           } else if (reward.type === 'tickets') {
@@ -132,7 +133,6 @@ export default function WheelOfFortune({ children }: WheelOfFortuneProps) {
           }
 
           queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/user/coins"] });
           queryClient.invalidateQueries({ queryKey: ["/api/spin/status"] });
         } catch (e) {
           console.error("API call failed:", e);
@@ -193,7 +193,6 @@ export default function WheelOfFortune({ children }: WheelOfFortuneProps) {
 
           // Immediately update local store to reflect changes
           const currentGems = user?.gems || 0;
-          const currentCoins = user?.coins || 0;
           const currentTickets = user?.tickets || 0;
 
           // Deduct 10 gems
@@ -201,7 +200,7 @@ export default function WheelOfFortune({ children }: WheelOfFortuneProps) {
 
           // Add reward
           if (reward.type === 'coins') {
-            updateUser({ coins: currentCoins + reward.amount });
+            await reloadCoinsBalance();
           } else if (reward.type === 'gems') {
             updateUser({ gems: (currentGems - 10) + reward.amount });
           } else if (reward.type === 'tickets') {
@@ -210,7 +209,6 @@ export default function WheelOfFortune({ children }: WheelOfFortuneProps) {
 
           // Reload user data from server to ensure consistency
           await queryClient.refetchQueries({ queryKey: ["/api/user/profile"] });
-          await queryClient.refetchQueries({ queryKey: ["/api/user/coins"] });
           await queryClient.refetchQueries({ queryKey: ["/api/spin/status"] });
         } catch (e) {
           console.error("API call failed:", e);

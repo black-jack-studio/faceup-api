@@ -1,15 +1,15 @@
 // src/components/WalletPayButton.tsx
-import {loadStripe} from "@stripe/stripe-js";
-import type {PaymentRequest} from "@stripe/stripe-js";
+import type { PaymentRequest } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentRequestButtonElement,
   useStripe
 } from "@stripe/react-stripe-js";
-import {useEffect, useMemo, useState} from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { getStripe } from "@/lib/stripe";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY!);
+const stripePromise = getStripe();
 
 type Props = {
   // ex: 599 = 5,99€ (en cents)
