@@ -1,6 +1,7 @@
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from './lib/supabase';
+import { useUserStore } from '@/store/user-store';
 
 export function registerDeepLinkHandler() {
   if (!Capacitor.isNativePlatform()) return;
@@ -16,8 +17,11 @@ export function registerDeepLinkHandler() {
           console.error('Supabase exchange error', error);
         } else {
           console.log('Session exchanged successfully', data);
-          // La session est maintenant établie, l'app va automatiquement se rediriger
-          // via les mécanismes de routing existants
+          try {
+            await useUserStore.getState().finalizeSupabaseSession();
+          } catch (sessionError) {
+            console.error('Failed to finalize session after deep link login', sessionError);
+          }
         }
       }
     } catch (e) {
