@@ -3,8 +3,9 @@ import { persist } from 'zustand/middleware';
 import { User } from '@shared/schema';
 import { apiRequest, queryClient, invalidateCSRFToken } from '@/lib/queryClient';
 import { login as loginRequest, register as registerRequest, logout as logoutRequest } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { createLogger } from '@/lib/logger';
-import { syncUserCoinsToChips } from '@/lib/store-sync';
+import { reloadCoinsBalance, syncUserCoinsToChips } from '@/lib/store-sync';
 
 interface UserState {
   user: User | null;
@@ -16,8 +17,8 @@ interface UserActions {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, confirmPassword?: string) => Promise<void>;
   setUser: (user: User) => void;
-  logout: () => void;
-  loadUser: () => Promise<void>;
+  logout: () => Promise<void>;
+  loadUser: (options?: { force?: boolean }) => Promise<void>;
   initializeAuth: () => Promise<void>;
   updateUser: (updates: Partial<User>, options?: { skipServer?: boolean }) => void;
   addCoins: (amount: number) => void;
@@ -30,11 +31,13 @@ interface UserActions {
   spendTickets: (amount: number) => boolean;
   checkSubscriptionStatus: () => Promise<void>;
   isPremium: () => boolean;
+  finalizeSupabaseSession: (user?: User | null) => Promise<void>;
 }
 
 type UserStore = UserState & UserActions;
 
 const coinsLogger = createLogger('COINS_SYNC');
+const authLogger = createLogger('AUTH_SYNC');
 type ChipsStoreModule = typeof import('./chips-store');
 
 function getChipsStore() {
@@ -59,17 +62,32 @@ export const useUserStore = create<UserStore>()(
           // Invalidate CSRF token cache after login to force new token fetch
           invalidateCSRFToken();
 
-          set({
-            user: userData.user,
-            isLoading: false,
-            error: null
-          });
+          const email = userData.user?.email;
+          if (email) {
+            const { error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
+            if (supabaseError) {
+              authLogger.error('Failed to sign in to Supabase after login', supabaseError);
+              const normalized = new Error(
+                supabaseError.message || 'Unable to establish Supabase session'
+              ) as Error & { status?: number; errorType?: string };
+              normalized.status = supabaseError.status;
+              normalized.errorType = 'supabase_auth_error';
+              throw normalized;
+            }
+          } else {
+            authLogger.warn('User email missing when attempting Supabase sign-in', { username });
+          }
 
-          syncUserCoinsToChips(userData.user?.coins ?? 0);
+          await get().finalizeSupabaseSession(userData.user);
+
+          set({
+            isLoading: false,
+            error: null,
+          });
         } catch (error: any) {
-          set({ 
+          set({
             error: error.message || 'Login failed',
-            isLoading: false 
+            isLoading: false
           });
           // Normalize error to ensure errorType is preserved
           const normalizedError = {
@@ -95,17 +113,27 @@ export const useUserStore = create<UserStore>()(
           // Invalidate CSRF token cache after registration to force new token fetch
           invalidateCSRFToken();
 
-          set({
-            user: userData.user,
-            isLoading: false,
-            error: null
-          });
+          const { error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
+          if (supabaseError) {
+            authLogger.error('Failed to sign in to Supabase after registration', supabaseError);
+            const normalized = new Error(
+              supabaseError.message || 'Unable to establish Supabase session'
+            ) as Error & { status?: number; errorType?: string };
+            normalized.status = supabaseError.status;
+            normalized.errorType = 'supabase_auth_error';
+            throw normalized;
+          }
 
-          syncUserCoinsToChips(userData.user?.coins ?? 0);
+          await get().finalizeSupabaseSession(userData.user);
+
+          set({
+            isLoading: false,
+            error: null,
+          });
         } catch (error: any) {
-          set({ 
+          set({
             error: error.message || 'Registration failed',
-            isLoading: false 
+            isLoading: false
           });
           throw error;
         }
@@ -121,22 +149,31 @@ export const useUserStore = create<UserStore>()(
         syncUserCoinsToChips(user?.coins ?? 0);
       },
 
-      logout: () => {
+      logout: async () => {
         set({ user: null, error: null });
         queryClient.clear();
         syncUserCoinsToChips(0);
+        try {
+          const { error: supabaseError } = await supabase.auth.signOut();
+          if (supabaseError) {
+            authLogger.warn('Failed to sign out from Supabase', supabaseError);
+          }
+        } catch (error) {
+          authLogger.warn('Unexpected error during Supabase sign-out', error);
+        }
+
         // Clear session on server
-        logoutRequest().catch(() => {
+        await logoutRequest().catch(() => {
           // Ignore errors on logout
         });
       },
 
-      loadUser: async () => {
+      loadUser: async (options) => {
         const currentUser = get().user;
-        if (!currentUser) return;
-        
+        if (!options?.force && !currentUser) return;
+
         set({ isLoading: true });
-        
+
         try {
           const response = await apiRequest('GET', '/api/user/profile');
           const userData = await response.json();
@@ -157,6 +194,32 @@ export const useUserStore = create<UserStore>()(
             error: error.message,
             isLoading: false 
           });
+        }
+      },
+
+      finalizeSupabaseSession: async (user?: User | null) => {
+        let targetUser = user ?? null;
+
+        if (targetUser) {
+          set({
+            user: targetUser,
+            error: null,
+          });
+          syncUserCoinsToChips(targetUser.coins ?? 0);
+        } else {
+          try {
+            await get().loadUser({ force: true });
+            targetUser = get().user;
+          } catch (error) {
+            authLogger.error('Failed to load user profile after establishing Supabase session', error);
+            throw error;
+          }
+        }
+
+        try {
+          await reloadCoinsBalance();
+        } catch (error) {
+          authLogger.warn('Failed to reload coins balance after Supabase session', error);
         }
       },
 

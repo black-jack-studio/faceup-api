@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, UserPlus, User, Mail, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
-import { register as registerRequest } from "@/lib/api";
 import { useUserStore } from "@/store/user-store";
 
 // Import 3D assets to match app style
@@ -26,7 +25,7 @@ export default function Register() {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { setUser } = useUserStore();
+  const registerUser = useUserStore((state) => state.register);
 
   // Validation functions
   const validateEmail = (email: string) => {
@@ -89,15 +88,7 @@ export default function Register() {
       setPasswordError("");
       setConfirmPasswordError("");
       
-      const data = await registerRequest({
-        username,
-        email,
-        password,
-        confirmPassword,
-      });
-
-      // Set user in store
-      setUser(data.user);
+      await registerUser(username, email, password, confirmPassword);
 
       // Navigate to home
       toast({

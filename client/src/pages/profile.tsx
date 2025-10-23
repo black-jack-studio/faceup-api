@@ -107,8 +107,8 @@ export default function Profile() {
     },
   });
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 
